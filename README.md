@@ -144,7 +144,7 @@ We welcome contributions! Please follow these steps:
 
 ## License 📄
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+[![License](https://img.shields.io/badge/License-Custom%20Attribution--NonCommercial--NoDerivatives-blue.svg)](LICENSE)
 
 ---
 
