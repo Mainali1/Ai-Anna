@@ -1,1 +1,3 @@
-assistant/resources
+assistant/__pycache__
+.env
+assistant/resources/wake_word.ppn

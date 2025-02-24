@@ -2,6 +2,7 @@ from assistant.gui import StudentAssistantGUI
 from assistant.voice_engine import VoiceEngine
 from assistant.command_handler import CommandHandler
 import tkinter as tk
+from ttkthemes import ThemedTk
 
 def main():
     root = ThemedTk(theme="equilux")
