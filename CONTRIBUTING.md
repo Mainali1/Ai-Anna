@@ -1,6 +1,6 @@
 # Contributing to Anna 🎓🤖
 
-Thank you for your interest in contributing to Anannya! We welcome all contributions, whether it's code, documentation, bug reports, or feature suggestions. Here’s how you can help:
+Thank you for your interest in contributing to Anna! We welcome all contributions, whether it's code, documentation, bug reports, or feature suggestions. Here’s how you can help:
 
 ---
 
