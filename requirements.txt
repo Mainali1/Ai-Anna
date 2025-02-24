@@ -1,14 +1,15 @@
-SpeechRecognition==3.10.0
-pyttsx3==2.71
-python-dotenv==0.19.0
-ttkthemes==3.2.2
-pvporcupine==3.0.5
-PyAudio==0.2.14
-pynput==1.7.6
-pandas==1.5.3
-nltk==3.9.1
+SpeechRecognition==3.10.0  # For speech recognition
+pyttsx3==2.71 
+python-dotenv==0.19.0 
+ttkthemes==3.2.2 
+pvporcupine==3.0.5  # For voice commands
+PyAudio==0.2.14  # For recording audio
+pynput==1.7.6  # For keyboard and mouse control
+pandas==1.5.3  # For data analysis
+nltk==3.9.1  # For natural language processing tasks
 pygame==2.5.0  # For sound notifications
-python-dateutil==2.8.2
+python-dateutil==2.8.2 
 spacy==3.7.2  # For NLP tasks
 wikipedia==1.4.0  # For wikipedia searches
+sounddevice==0.5.1  # For playing audio files
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0-py3-none-any.whl  # Small English model
