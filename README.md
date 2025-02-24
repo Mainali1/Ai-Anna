@@ -55,7 +55,7 @@
    - Create a free account at [Picovoice Console](https://console.picovoice.ai/).
    - Create a `.env` file in the project root and add your API key:
      ```env
-     PICOVOICE_KEY=your-free-key-here
+     PICOVOICE_ACCESS_KEY=your-free-key-here
      ```
 
 4. **Run Anna**:
