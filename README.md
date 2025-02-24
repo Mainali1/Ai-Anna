@@ -1,6 +1,6 @@
 # Anna - Free AI Student Assistant 🤖🎓
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Custom%20Attribution--NonCommercial--NoDerivatives-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 **Anna** is an open-source, privacy-focused AI assistant designed specifically for students. Built with **100% free and open-source technologies**, Anannya helps you manage your academic life through intuitive voice and text commands. Whether you're tracking assignments, studying with flashcards, or summarizing lectures, Anannya is your personal academic companion.
