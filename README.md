@@ -58,7 +58,7 @@
      PICOVOICE_KEY=your-free-key-here
      ```
 
-4. **Run Anannya**:
+4. **Run Anna**:
    ```bash
    python main.py
    ```
@@ -100,7 +100,7 @@ Ai-Anannya/
 │   ├── study_manager.py
 │   ├── database.py
 │   └── resources/
-│       └── wake_word.ppn (Make a Wake owrd in Picovoice)
+│       └── wake_word.ppn (Make a Wake word in Picovoice)
 │
 ├── requirements.txt
 ├── README.md
