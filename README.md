@@ -141,10 +141,12 @@ We welcome contributions! Please follow these steps:
 - Share Anannya with fellow students!
 
 ---
-
-## License 📄
-
-[![License](https://img.shields.io/badge/License-Custom%20Attribution--NonCommercial--NoDerivatives-blue.svg)](LICENSE)
+## License  
+This project is licensed under the **Ai-Anna Custom License**.  
+- **Non-Commercial Use**: The software may not be used for commercial purposes in its original form.  
+- **Attribution**: Proper credit must be given to the original author (Mainali1).  
+- **Derivative Works**: Allowed only if significant modifications (at least 50%) and substantial contributions are made.  
+See the [LICENSE](LICENSE) file for full details.
 
 ---
 
