@@ -1,8 +1,9 @@
 # assistant/database.py
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
 import logging
+import re
 
 class DatabaseHandler:
     def __init__(self, db_name="student_data.db"):
@@ -13,6 +14,7 @@ class DatabaseHandler:
     def _get_cursor(self):
         """Context manager for database connections"""
         conn = sqlite3.connect(self.db_name)
+        conn.execute("PRAGMA foreign_keys = ON")
         cursor = conn.cursor()
         try:
             yield cursor
@@ -25,7 +27,7 @@ class DatabaseHandler:
             conn.close()
 
     def _initialize_database(self):
-        """Create tables if they don't exist"""
+        """Create tables and indexes if they don't exist"""
         with self._get_cursor() as c:
             # Academic Assignments
             c.execute('''CREATE TABLE IF NOT EXISTS assignments
@@ -42,7 +44,7 @@ class DatabaseHandler:
                         start_time TEXT NOT NULL,
                         end_time TEXT,
                         duration INTEGER,
-                        type TEXT CHECK(type IN ('work', 'break')))''')
+                        session_type TEXT CHECK(session_type IN ('work', 'break')))''')
             
             # Flashcards with Spaced Repetition
             c.execute('''CREATE TABLE IF NOT EXISTS flashcards
@@ -62,19 +64,26 @@ class DatabaseHandler:
                         end_time TEXT NOT NULL,
                         subject TEXT NOT NULL,
                         room TEXT)''')
+            
+            # Create indexes
+            c.execute('''CREATE INDEX IF NOT EXISTS idx_assignments_due ON assignments(due_date)''')
+            c.execute('''CREATE INDEX IF NOT EXISTS idx_flashcards_review ON flashcards(next_review)''')
 
     # ----------------- Assignment Methods -----------------
     def add_assignment(self, subject, task, due_date, priority=1):
+        if not self._validate_date(due_date):
+            raise ValueError("Invalid date format. Use YYYY-MM-DD")
+            
         with self._get_cursor() as c:
             c.execute('''INSERT INTO assignments 
                         (subject, task, due_date, priority)
                         VALUES (?, ?, ?, ?)''',
-                     (subject, task, due_date, priority))
+                     (subject.strip(), task.strip(), due_date, priority))
             return c.lastrowid
 
     def get_due_assignments(self, days_ahead=7):
         with self._get_cursor() as c:
-            end_date = (datetime.now() + timedelta(days=days_ahead)).isoformat()
+            end_date = (datetime.now(timezone.utc) + timedelta(days=days_ahead)).isoformat()
             c.execute('''SELECT * FROM assignments 
                        WHERE due_date <= ? AND completed = FALSE
                        ORDER BY due_date, priority DESC''',
@@ -83,16 +92,27 @@ class DatabaseHandler:
 
     # ----------------- Study Session Methods -----------------
     def start_study_session(self, session_type='work'):
+        if session_type not in ('work', 'break'):
+            raise ValueError("Invalid session type")
+            
         with self._get_cursor() as c:
-            start_time = datetime.now().isoformat()
+            start_time = datetime.now(timezone.utc).isoformat()
             c.execute('''INSERT INTO study_sessions
-                        (start_time, type) VALUES (?, ?)''',
+                        (start_time, session_type) VALUES (?, ?)''',
                      (start_time, session_type))
             return c.lastrowid
 
-    def end_study_session(self, session_id, duration):
+    def end_study_session(self, session_id):
         with self._get_cursor() as c:
-            end_time = datetime.now().isoformat()
+            end_time = datetime.now(timezone.utc).isoformat()
+            c.execute('''SELECT start_time FROM study_sessions WHERE id = ?''', (session_id,))
+            result = c.fetchone()
+            if not result:
+                raise ValueError("Session not found")
+                
+            start_time = datetime.fromisoformat(result[0])
+            duration = int((datetime.now(timezone.utc) - start_time).total_seconds())
+            
             c.execute('''UPDATE study_sessions 
                        SET end_time = ?, duration = ?
                        WHERE id = ?''',
@@ -101,40 +121,44 @@ class DatabaseHandler:
     # ----------------- Flashcard Methods -----------------
     def add_flashcard(self, front, back):
         with self._get_cursor() as c:
-            next_review = datetime.now().isoformat()
+            next_review = datetime.now(timezone.utc).isoformat()
             c.execute('''INSERT INTO flashcards
                         (front, back, next_review)
                         VALUES (?, ?, ?)''',
-                     (front, back, next_review))
+                     (front.strip(), back.strip(), next_review))
             return c.lastrowid
 
     def get_due_flashcards(self):
         with self._get_cursor() as c:
+            now_utc = datetime.now(timezone.utc).isoformat()
             c.execute('''SELECT * FROM flashcards 
-                       WHERE next_review <= datetime('now')
-                       ORDER BY next_review''')
+                       WHERE next_review <= ?
+                       ORDER BY next_review''',
+                    (now_utc,))
             return c.fetchall()
 
     def update_flashcard_progress(self, card_id, quality):
         """Update flashcard using SuperMemo2 algorithm"""
+        if quality < 0 or quality > 5:
+            raise ValueError("Quality must be between 0 and 5")
+            
         with self._get_cursor() as c:
             c.execute('''SELECT interval, ease_factor FROM flashcards
                        WHERE id = ?''', (card_id,))
-            interval, ease_factor = c.fetchone()
+            result = c.fetchone()
+            if not result:
+                raise ValueError("Flashcard not found")
+                
+            interval, ease_factor = result
 
             if quality >= 3:
-                if interval == 0:
-                    new_interval = 1
-                elif interval == 1:
-                    new_interval = 6
-                else:
-                    new_interval = interval * ease_factor
+                new_interval = interval * ease_factor if interval > 1 else 6
                 new_ease = max(1.3, ease_factor + 0.1 - (5 - quality)*(0.08+(5-quality)*0.02))
             else:
                 new_interval = 1
                 new_ease = max(1.3, ease_factor - 0.2)
 
-            next_review = (datetime.now() + timedelta(days=new_interval)).isoformat()
+            next_review = (datetime.now(timezone.utc) + timedelta(days=new_interval)).isoformat()
             c.execute('''UPDATE flashcards SET
                        interval = ?, ease_factor = ?, next_review = ?
                        WHERE id = ?''',
@@ -142,11 +166,14 @@ class DatabaseHandler:
 
     # ----------------- Schedule Methods -----------------
     def add_class(self, day, start_time, end_time, subject, room):
+        if not re.match(r"^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$", start_time):
+            raise ValueError("Invalid start time format (HH:MM)")
+            
         with self._get_cursor() as c:
             c.execute('''INSERT INTO schedule
                         (day, start_time, end_time, subject, room)
                         VALUES (?, ?, ?, ?, ?)''',
-                     (day.lower()[:3], start_time, end_time, subject, room))
+                     (day.lower()[:3], start_time, end_time, subject.strip(), room.strip()))
 
     def get_daily_schedule(self, day):
         with self._get_cursor() as c:
@@ -156,27 +183,9 @@ class DatabaseHandler:
                     (day.lower()[:3],))
             return c.fetchall()
 
-# Example usage
-if __name__ == "__main__":
-    db = DatabaseHandler()
-    
-    # Test assignment
-    db.add_assignment(
-        subject="Math",
-        task="Complete chapter 5 exercises",
-        due_date="2023-12-15",
-        priority=2
-    )
-    
-    # Test flashcard
-    card_id = db.add_flashcard("Photosynthesis", "Process by which plants convert light energy to chemical energy")
-    db.update_flashcard_progress(card_id, quality=4)
-    
-    # Test class schedule
-    db.add_class(
-        day="Monday",
-        start_time="09:00",
-        end_time="10:30",
-        subject="Physics",
-        room="Lab B"
-    )
+    def _validate_date(self, date_str):
+        try:
+            datetime.fromisoformat(date_str)
+            return True
+        except ValueError:
+            return False

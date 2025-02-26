@@ -1,0 +1,10 @@
+{
+  "offline_mode": false,
+  "voice_response": true,
+  "beep_sound": true,
+  "wake_phrase": "Anna ready",
+  "music_path": "~/Music",
+  "speech_rate": 150,
+  "speech_volume": 0.9,
+  "wake_word_sensitivity": 0.7
+}

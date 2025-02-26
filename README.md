@@ -48,7 +48,7 @@
 2. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
-   python -m spacy download en_core_web_sm
+   pip install vosk pygame==2.5.0
    ```
 
 3. **Set Up Picovoice**:
@@ -104,6 +104,10 @@ Ai-Anannya/
 │
 ├── requirements.txt
 ├── README.md
+├── LICENSE
+├── CONTRIBUTING.md
+├── CODE_OFCONDUCT.md
+├──.gitignore
 └── assignments.db
 ```
 

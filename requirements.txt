@@ -1,7 +1,7 @@
 SpeechRecognition==3.10.0  # For speech recognition
-pyttsx3==2.71 
-python-dotenv==0.19.0 
-ttkthemes==3.2.2 
+pyttsx3==2.71  # For text-to-speech conversion
+python-dotenv==0.19.0  # For managing environment variables
+ttkthemes==3.2.2  # For theme support
 pvporcupine==3.0.5  # For voice commands
 PyAudio==0.2.14  # For recording audio
 pynput==1.7.6  # For keyboard and mouse control
@@ -12,4 +12,6 @@ python-dateutil==2.8.2
 spacy==3.7.2  # For NLP tasks
 wikipedia==1.4.0  # For wikipedia searches
 sounddevice==0.5.1  # For playing audio files
+IMAPClient==3.0.1  # For email management
+keyring==23.13.1  # For storing passwords securely
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0-py3-none-any.whl  # Small English model
