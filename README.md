@@ -1,5 +1,3 @@
-Here's the **updated README.md** synchronized with your current codebase and functionality:
-
 # Anna - Free AI Student Assistant 🤖🎓
 
 [![License](https://img.shields.io/badge/License-Custom%20Attribution--NonCommercial--NoDerivatives-blue.svg)](LICENSE)
