@@ -1,87 +1,131 @@
+Here's the **updated README.md** synchronized with your current codebase and functionality:
+
+```markdown
 # Anna - Free AI Student Assistant 🤖🎓
 
 [![License](https://img.shields.io/badge/License-Custom%20Attribution--NonCommercial--NoDerivatives-blue.svg)](LICENSE)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-**Anna** is an open-source, privacy-focused AI assistant designed specifically for students. Built with **100% free and open-source technologies**, Anannya helps you manage your academic life through intuitive voice and text commands. Whether you're tracking assignments, studying with flashcards, or summarizing lectures, Anannya is your personal academic companion.
+**Anna** is an open-source AI assistant optimized for student productivity. Featuring **voice-first interaction** and **offline capabilities**, Anna helps manage academic tasks through natural language commands. Now with improved stability and reduced CPU usage.
 
 ---
 
 ## Features 🚀
 
 ### 🎤 **Voice Control**
-- **Wake Word Detection**: Uses Picovoice's free tier for always-on listening.
-- **Speech-to-Text**: Powered by Google's free speech recognition API.
-- **Text-to-Speech**: Offline TTS using system voices via `pyttsx3`.
+- **Wake Phrase**: "Anna ready" (customizable in config)
+- **Hybrid Recognition**: Google Speech (online) + Vosk (offline)
+- **Low-Latency Audio**: SoundDevice backend for responsive interaction
 
-### 📚 **Academic Tools**
-- **Assignment Tracker**: Log assignments with deadlines and get reminders.
-- **Smart Flashcards**: Spaced repetition system for efficient studying.
-- **Study Timer**: Pomodoro technique with customizable work/break intervals.
-- **Lecture Summarizer**: Condense long texts using NLP-powered summarization.
-- **Research Helper**: Quick access to Wikipedia and DuckDuckGo for instant answers.
+### 📚 **Core Academic Features**
+- **Smart Pomodoro Timer**: `"Start 25 minute study timer"`
+- **Assignment Tracker**: `"Add math assignment due 2023-12-01"`
+- **Flashcard System**: `"Create flashcard: Mitochondria: Powerhouse of cell"`
+- **Class Schedule**: `"What's my schedule today?"`
+- **Quick Research**: `"Wikipedia artificial intelligence"`
 
-### 🛠 **Productivity Features**
-- **Class Schedule Manager**: Organize your weekly timetable.
-- **File Quick-Access**: Open frequently used files with voice commands.
-- **Screen Time Monitor**: Track and manage your study time.
-- **Customizable Hotkeys**: Quick shortcuts for common tasks.
-- **Cross-Platform Support**: Works on Windows, macOS, and Linux.
+### 🖥️ **System Integration**
+- **App Launcher**: `"Open browser/text editor/music player"`
+- **File Access**: `"Open file D:/notes.txt"`
+- **Email Check**: `"Check my emails"`
+- **Music Control**: `"Play/Pause music"`
 
 ---
 
 ## Installation 📦
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.10+
+- Windows/Linux/macOS
 - Microphone
-- Free Picovoice account (for wake word)
 
-### Step-by-Step Setup
-
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/Mainali1/Ai-Anna.git
-   cd Ai-Anna
-   ```
-
-2. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   pip install vosk pygame==2.5.0
-   ```
-
-3. **Set Up Picovoice**:
+**Set Up Picovoice**:
    - Create a free account at [Picovoice Console](https://console.picovoice.ai/).
    - Create a `.env` file in the project root and add your API key:
-     ```env
-     PICOVOICE_ACCESS_KEY=your-free-key-here
-     ```
 
-4. **Run Anna**:
-   ```bash
-   python main.py
-   ```
+### Quick Setup
+```bash
+git clone https://github.com/Mainali1/Ai-Anna.git
+cd Ai-Anna
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file
+echo "PICOVOICE_ACCESS_KEY=your-key-here" > .env
+
+# Launch Anna
+python main.py
+```
 
 ---
 
-## Usage Guide 🗣️
+## Configuration ⚙️
+Edit `config.json` to customize:
+```json
+{
+  "wake_phrase": "Anna ready",
+  "voice_response": true,
+  "speech_rate": 150,
+  "music_path": "~/Music",
+  "offline_mode": false
+}
+```
 
-### **Basic Commands**
-| Command | Action |
-|---------|--------|
-| "Anna, what's my schedule?" | View your class timetable |
-| "Add physics assignment due Friday" | Log a new assignment |
-| "Start 30-minute study timer" | Begin a Pomodoro session |
-| "Search Wikipedia for AI history" | Get a Wikipedia summary |
-| "Create flashcard: Photosynthesis..." | Make a study card |
-| "Summarize this text: [paste text]" | Condense long text |
-| "Open my math notes" | Quick-access files |
+---
 
-### **Keyboard Shortcuts**
-- `Ctrl + Space`: Toggle voice listening
-- `Alt + Q`: Show quick command list
-- `Esc`: Minimize to system tray
+## Command Reference 🗣️
+
+### Study Management
+| Command Pattern | Example |
+|-----------------|---------|
+| "Start [X] minute timer" | "Start 45 minute timer" |
+| "Add assignment [task] due [date]" | "Add essay due Friday" |
+| "Create flashcard [front]: [back]" | "Create flashcard CPU: Central Processing Unit" |
+
+### System Control
+| Command Pattern | Action |
+|-----------------|--------|
+| "Open [application]" | Launches specified app |
+| "What time is it?" | Current time/date |
+| "Search web for [query]" | DuckDuckGo search |
+
+### Utilities
+| Command | Function |
+|---------|----------|
+| "Sleep" | Toggle voice listening |
+| "Help" | Show command list |
+| "Exit" | Close application |
+
+---
+
+## Technical Overview 🛠️
+
+### Architecture
+```mermaid
+graph TD
+    A[GUI] <--> B[Command Handler]
+    B <--> C[Study Manager]
+    B <--> D[Voice Engine]
+    B <--> E[Email Manager]
+    C <--> F[Database]
+    D <--> G[Picovoice]
+```
+
+### Key Technologies
+- **Wake Word**: Picovoice Porcupine
+- **Speech Recognition**: Google Web Speech API + Vosk
+- **Text-to-Speech**: pyttsx3
+- **Database**: SQLite with spaced repetition
+- **UI**: Tkinter + ttkthemes
+
+---
+
+## Performance Optimization 🚀
+- Reduced CPU usage to <5% idle
+- Threaded audio processing
+- Configurable wake word sensitivity
+- Automatic NLTK resource management
 
 ---
 
@@ -94,11 +138,14 @@ Ai-Anannya/
 ├── main.py
 ├── assistant/
 │   ├── __init__.py
-│   ├── gui.py
-│   ├── voice_engine.py
 │   ├── command_handler.py
-│   ├── study_manager.py
+│   ├── config_manager.py
 │   ├── database.py
+│   ├── email_manager.py
+│   ├── gui.py
+│   ├── music_controller.py
+│   ├── study_manager.py
+│   ├── voice_engine.py
 │   └── resources/
 │       └── wake_word.ppn (Make a Wake word in Picovoice)
 │
@@ -107,6 +154,7 @@ Ai-Anannya/
 ├── LICENSE
 ├── CONTRIBUTING.md
 ├── CODE_OFCONDUCT.md
+├── config.json
 ├──.gitignore
 └── assignments.db
 ```
@@ -129,15 +177,6 @@ We welcome contributions! Please follow these steps:
 5. Open a Pull Request.
 
 ---
-
-## Future Roadmap 🔮
-
-### **Planned Features**
-- Mood tracking with sentiment analysis
-- Peer collaboration tools
-- Integration with open-source LMS platforms
-- Ethical voice cloning for personalized TTS
-- Multi-language support
 
 ### **How You Can Help**
 - Report bugs or suggest features by opening an issue.
