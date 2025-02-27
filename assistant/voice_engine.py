@@ -6,7 +6,6 @@ import speech_recognition as sr
 from threading import Thread, Event
 import pyttsx3
 import platform
-import wave
 import json
 import time
 from vosk import Model, KaldiRecognizer
@@ -48,7 +47,7 @@ class VoiceEngine:
         with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype=np.int16, 
                           blocksize=self.frame_length, callback=self.audio_callback):
             while True:
-                time.sleep(0.1)  # Reduced CPU usage
+                time.sleep(0.1)
                 if self.wake_word_detected.is_set() and not self.is_processing:
                     self.handle_wake_word()
                     self.wake_word_detected.clear()
@@ -89,9 +88,8 @@ class VoiceEngine:
                 r.adjust_for_ambient_noise(source, duration=0.5)
                 audio = r.listen(source, timeout=8, phrase_time_limit=15)
                 command = self.recognize_audio(audio)
-                if command:
-                    if self.command_handler:  # Proper indentation added here
-                        self.command_handler.process_command(command)  # And here
+                if command and self.command_handler:
+                    self.command_handler.process_command(command)
             except sr.WaitTimeoutError:
                 self.gui.show_error("Listening timed out")
             except Exception as e:
@@ -101,7 +99,6 @@ class VoiceEngine:
 
     def recognize_audio(self, audio):
         try:
-            # Resample audio to 16kHz for Vosk compatibility
             wav_data = audio.get_wav_data(convert_rate=16000)
             return sr.Recognizer().recognize_google(audio)
         except sr.UnknownValueError:
@@ -126,20 +123,21 @@ class VoiceEngine:
             return None
 
     def speak(self, text):
-        def _speak():
+        def _speak(txt):
             try:
                 engine = pyttsx3.init()
                 engine.setProperty('rate', self.config['speech_rate'])
                 engine.setProperty('volume', self.config['speech_volume'])
-                engine.say(text)
+                engine.say(txt)
                 engine.runAndWait()
+                engine.stop()
             except Exception as e:
                 self.gui.show_error(f"Speech error: {str(e)}")
-        
+
         if self.config['voice_response']:
-            Thread(target=_speak, daemon=True).start()
+            Thread(target=_speak, args=(text,), daemon=True).start()
 
     def cleanup(self):
         if self.porcupine:
             self.porcupine.delete()
-        sd.stop()
+        sd.stop()      

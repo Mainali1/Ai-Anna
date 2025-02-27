@@ -27,4 +27,4 @@ class MusicController:
         pygame.mixer.music.play()
 
     def is_playing(self):
-        return pygame.mixer.music.get_busy()
+        return pygame.mixer.music.get_busy() 

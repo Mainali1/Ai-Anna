@@ -2,7 +2,7 @@
   "offline_mode": false,
   "voice_response": true,
   "beep_sound": true,
-  "wake_phrase": "Anna ready",
+  "wake_phrase": "Ready For Task",
   "music_path": "~/Music",
   "speech_rate": 150,
   "speech_volume": 0.9,

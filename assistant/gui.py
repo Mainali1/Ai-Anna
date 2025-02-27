@@ -8,7 +8,7 @@ class StudentAssistantGUI:
         self.command_handler = None
         self.config = config
         
-        master.title("ANNAᵝ - Cybernetic Interface")
+        master.title("ANNA - Student PA")
         master.geometry("1000x720")
         master.configure(bg='#000000')
         

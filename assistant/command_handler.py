@@ -72,6 +72,9 @@ class CommandHandler:
             response = f"Error processing command: {str(e)}"
         
         self.gui.display_response(response)
+
+        if self.config['voice_response']:
+            self.voice_engine.speak(response)  # Proper indentation
         return response
 
     def toggle_listening(self):

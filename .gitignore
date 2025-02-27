@@ -2,4 +2,4 @@ assistant/__pycache__
 .env
 assistant/resources/wake_word.ppn
 student_data.db
-study_data.db
+assignments.db
