@@ -47,6 +47,7 @@ cd Ai-Anna
 
 # Install dependencies
 pip install -r requirements.txt
+pip -v install vosk
 
 # Create .env file
 echo "PICOVOICE_ACCESS_KEY=your-key-here" > .env
