@@ -9,7 +9,9 @@ class ConfigManager:
             'voice_response': True,
             'beep_sound': False,
             'wake_phrase': "Anna ready",
-            'music_path': "~/Music"
+            'music_path': "~/Music",
+            'speech_rate': 150,
+            'voice_gender': 'female'
         }
         self.load_config()
 
@@ -24,6 +26,9 @@ class ConfigManager:
     def save_config(self):
         with open(self.config_file, 'w') as f:
             json.dump(self.config, f, indent=2)
+
+    def get(self, key, default=None):
+        return self.config.get(key, default)
 
     def __getitem__(self, key):
         return self.config[key]

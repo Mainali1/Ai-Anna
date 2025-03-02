@@ -4,7 +4,12 @@ from pygame import mixer
 from datetime import datetime, timedelta
 import nltk
 
+from weakref import WeakValueDictionary
+
 class StudyManager:
+    def __init__(self):
+        # Use WeakValueDictionary for better memory management
+        self.cache = WeakValueDictionary()
     def __init__(self, db_handler):
         self.db = db_handler
         self.timer_active = False

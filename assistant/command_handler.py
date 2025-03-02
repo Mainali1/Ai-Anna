@@ -7,13 +7,14 @@ from datetime import datetime
 from urllib.parse import quote
 
 class CommandHandler:
-    def __init__(self, gui, voice_engine, study_manager, music_controller, email_manager, config):
+    def __init__(self, gui, voice_engine, study_manager, music_controller, email_manager, config, spaced_repetition):
         self.gui = gui
         self.voice_engine = voice_engine
         self.study_manager = study_manager
         self.music_controller = music_controller
         self.email_manager = email_manager
         self.config = config
+        self.spaced_repetition = spaced_repetition
         self.is_listening = False
         self.app_map = {
             'music player': 'spotify',
@@ -26,6 +27,22 @@ class CommandHandler:
         print(f"[DEBUG] Received command: {command}")  # Debug line
         command = command.lower()
         response = "Command not recognized"
+        
+        # Add personality and contextual awareness
+        self.last_command_time = getattr(self, 'last_command_time', None)
+        current_time = datetime.now()
+        
+        # Add time-based greetings
+        if self.last_command_time is None or (current_time - self.last_command_time).seconds > 300:
+            hour = current_time.hour
+            if 5 <= hour < 12:
+                response = "Good morning! "
+            elif 12 <= hour < 17:
+                response = "Good afternoon! "
+            else:
+                response = "Good evening! "
+        
+        self.last_command_time = current_time
         
         try:
             # Study Commands

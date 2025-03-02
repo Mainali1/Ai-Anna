@@ -6,6 +6,7 @@ from assistant.database import DatabaseHandler
 from assistant.music_controller import MusicController
 from assistant.email_manager import EmailManager
 from assistant.config_manager import ConfigManager
+from assistant.spaced_repetition import SpacedRepetitionSystem
 from ttkthemes import ThemedTk
 
 def main():
@@ -14,6 +15,7 @@ def main():
     
     # Initialize core components
     db_handler = DatabaseHandler()
+    spaced_repetition = SpacedRepetitionSystem(db_handler)
     study_manager = StudyManager(db_handler)
     music_controller = MusicController()
     email_manager = EmailManager()
@@ -29,7 +31,8 @@ def main():
         study_manager=study_manager,
         music_controller=music_controller,
         email_manager=email_manager,
-        config=config
+        config=config,
+        spaced_repetition=spaced_repetition
     )
     
     # Connect components PROPERLY

@@ -15,3 +15,9 @@ sounddevice==0.5.1  # For playing audio files
 IMAPClient==3.0.1  # For email management
 keyring==23.13.1  # For storing passwords securely
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0-py3-none-any.whl  # Small English model
+transformers==4.36.2  # For advanced NLP tasks
+torch==2.1.2  # Deep learning support
+librosa==0.10.1  # For audio processing
+webrtcvad==2.0.10  # For voice activity detection
+num2words==0.5.13  # For number to word conversion
+deepL==1.17.0  # For language translation

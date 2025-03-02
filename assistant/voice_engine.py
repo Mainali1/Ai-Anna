@@ -19,10 +19,33 @@ class VoiceEngine:
         self.listening_active = Event()
         self.is_processing = False
         
-        # Initialize wake word detector
+        # Initialize text-to-speech engine with female voice
+        self.tts_engine = pyttsx3.init()
+        voices = self.tts_engine.getProperty('voices')
+        # Set female voice if available
+        female_voice = None
+        for voice in voices:
+            if 'female' in voice.name.lower():
+                female_voice = voice.id
+                break
+        if female_voice:
+            self.tts_engine.setProperty('voice', female_voice)
+        else:
+            self.gui.show_error("Female voice not found, using default voice")
+            
+        # Set speech rate and volume from config
+        self.tts_engine.setProperty('rate', self.config.get('speech_rate', 150))
+        self.tts_engine.setProperty('volume', self.config.get('speech_volume', 0.9))
+        
+        # Load environment variables
+        self.picovoice_key = os.getenv('PICOVOICE_ACCESS_KEY')
+        if not self.picovoice_key:
+            raise ValueError("PICOVOICE_ACCESS_KEY not found in environment variables")
+            
+        # Initialize wake word detector with environment variable
         self.porcupine = pvporcupine.create(
-            access_key=os.getenv('PICOVOICE_ACCESS_KEY'),
-            sensitivities=[self.config['wake_word_sensitivity']],
+            access_key=self.picovoice_key,
+            sensitivities=[self.config.get('wake_word_sensitivity', 0.7)],
             keyword_paths=[self.get_wake_word_path()]
         )
         
@@ -140,4 +163,4 @@ class VoiceEngine:
     def cleanup(self):
         if self.porcupine:
             self.porcupine.delete()
-        sd.stop()      
+        sd.stop()
