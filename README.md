@@ -21,10 +21,15 @@
 - **Class Schedule**: `"What's my schedule today?"`
 - **Quick Research**: `"Wikipedia artificial intelligence"`
 
+### 🌟 **Enhanced Features**
+- **Weather Updates**: `"What's the weather like today?"`
+- **Mood Detection**: AI-powered emotion recognition
+- **Spaced Repetition**: Optimized learning intervals
+- **Email Integration**: `"Check my emails"`
+
 ### 🖥️ **System Integration**
 - **App Launcher**: `"Open browser/text editor/music player"`
 - **File Access**: `"Open file D:/notes.txt"`
-- **Email Check**: `"Check my emails"`
 - **Music Control**: `"Play/Pause music"`
 
 ---
@@ -36,9 +41,18 @@
 - Windows/Linux/macOS
 - Microphone
 
-**Set Up Picovoice**:
-   - Create a free account at [Picovoice Console](https://console.picovoice.ai/).
-   - Create a `.env` file in the project root and add your API key:
+### Environment Setup
+1. **Picovoice Configuration**:
+   - Create a free account at [Picovoice Console](https://console.picovoice.ai/)
+   - Create a `.env` file in the project root
+
+2. **Environment Variables**:
+```bash
+# .env file
+PICOVOICE_ACCESS_KEY=your-key-here
+WEATHER_API_KEY=your-weather-api-key
+EMAIL_PASSWORD=your-email-password
+```
 
 ### Quick Setup
 ```bash
@@ -48,9 +62,6 @@ cd Ai-Anna
 # Install dependencies
 pip install -r requirements.txt
 pip -v install vosk
-
-# Create .env file
-echo "PICOVOICE_ACCESS_KEY=your-key-here" > .env
 
 # Launch Anna
 python main.py
@@ -66,7 +77,9 @@ Edit `config.json` to customize:
   "voice_response": true,
   "speech_rate": 150,
   "music_path": "~/Music",
-  "offline_mode": false
+  "offline_mode": false,
+  "weather_update_interval": 3600,
+  "mood_detection_enabled": true
 }
 ```
 
@@ -76,7 +89,7 @@ Edit `config.json` to customize:
 
 ### Study Management
 | Command Pattern | Example |
-|-----------------|---------|
+|-----------------|----------|
 | "Start [X] minute timer" | "Start 45 minute timer" |
 | "Add assignment [task] due [date]" | "Add essay due Friday" |
 | "Create flashcard [front]: [back]" | "Create flashcard CPU: Central Processing Unit" |
@@ -87,6 +100,7 @@ Edit `config.json` to customize:
 | "Open [application]" | Launches specified app |
 | "What time is it?" | Current time/date |
 | "Search web for [query]" | DuckDuckGo search |
+| "Weather in [location]" | Get weather updates |
 
 ### Utilities
 | Command | Function |
@@ -106,6 +120,8 @@ graph TD
     B <--> C[Study Manager]
     B <--> D[Voice Engine]
     B <--> E[Email Manager]
+    B <--> H[Weather Service]
+    B <--> I[Mood Detector]
     C <--> F[Database]
     D <--> G[Picovoice]
 ```
@@ -116,6 +132,8 @@ graph TD
 - **Text-to-Speech**: pyttsx3
 - **Database**: SQLite with spaced repetition
 - **UI**: Tkinter + ttkthemes
+- **Weather API**: OpenWeatherMap integration
+- **Mood Analysis**: Advanced NLP processing
 
 ---
 
@@ -131,7 +149,7 @@ graph TD
 
 ### **Project Structure**
 ```
-Ai-Anannya/
+Ai-Anna/
 │
 ├── main.py
 ├── assistant/
@@ -142,24 +160,28 @@ Ai-Anannya/
 │   ├── email_manager.py
 │   ├── gui.py
 │   ├── music_controller.py
+│   ├── mood_detector.py
+│   ├── weather_service.py
+│   ├── spaced_repetition.py
 │   ├── study_manager.py
 │   ├── voice_engine.py
 │   └── resources/
-│       └── wake_word.ppn (Make a Wake word in Picovoice)
+│       └── wake_word.ppn
 │
 ├── requirements.txt
 ├── README.md
 ├── LICENSE
 ├── CONTRIBUTING.md
-├── CODE_OFCONDUCT.md
+├── CODE_OF_CONDUCT.md
 ├── config.json
-├──.gitignore
+├── .env
+├── .gitignore
 └── assignments.db
 ```
 
 ### **Contribute**
 We welcome contributions! Please follow these steps:
-1. Fork the repository.
+1. Fork the repository
 2. Create your feature branch:
    ```bash
    git checkout -b feature/amazing-feature
@@ -172,31 +194,32 @@ We welcome contributions! Please follow these steps:
    ```bash
    git push origin feature/amazing-feature
    ```
-5. Open a Pull Request.
+5. Open a Pull Request
 
 ---
 
 ### **How You Can Help**
-- Report bugs or suggest features by opening an issue.
-- Contribute code via pull requests.
-- Share Anannya with fellow students!
+- Report bugs or suggest features by opening an issue
+- Contribute code via pull requests
+- Share Anna with fellow students!
 
 ---
 ## License  
-This project is licensed under the **Ai-Anna Custom License**.  
-- **Non-Commercial Use**: The software may not be used for commercial purposes in its original form.  
-- **Attribution**: Proper credit must be given to the original author (Mainali1).  
-- **Derivative Works**: Allowed only if significant modifications (at least 50%) and substantial contributions are made.  
+This project is licensed under the **Ai-Anna Custom License**.
+- **Non-Commercial Use**: The software may not be used for commercial purposes in its original form
+- **Attribution**: Proper credit must be given to the original author (Mainali1)
+- **Derivative Works**: Allowed only if significant modifications (at least 50%) and substantial contributions are made
 See the [LICENSE](LICENSE) file for full details.
 
 ---
 
 ## Acknowledgments 🙏
 
-- **Speech Recognition**: Powered by [SpeechRecognition](https://github.com/Uberi/speech_recognition).
-- **Wake Word Detection**: Enabled by [Picovoice](https://picovoice.ai/).
-- **NLP Capabilities**: Provided by [spaCy](https://spacy.io/) and [NLTK](https://www.nltk.org/).
-- **UI Design**: Enhanced with [ttkthemes](https://github.com/RedFantom/ttkthemes).
+- **Speech Recognition**: Powered by [SpeechRecognition](https://github.com/Uberi/speech_recognition)
+- **Wake Word Detection**: Enabled by [Picovoice](https://picovoice.ai/)
+- **NLP Capabilities**: Provided by [spaCy](https://spacy.io/) and [NLTK](https://www.nltk.org/)
+- **UI Design**: Enhanced with [ttkthemes](https://github.com/RedFantom/ttkthemes)
+- **Weather Data**: Powered by OpenWeatherMap API
 
 ---
 
