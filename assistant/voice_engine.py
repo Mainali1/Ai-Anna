@@ -19,33 +19,10 @@ class VoiceEngine:
         self.listening_active = Event()
         self.is_processing = False
         
-        # Initialize text-to-speech engine with female voice
-        self.tts_engine = pyttsx3.init()
-        voices = self.tts_engine.getProperty('voices')
-        # Set female voice if available
-        female_voice = None
-        for voice in voices:
-            if 'female' in voice.name.lower():
-                female_voice = voice.id
-                break
-        if female_voice:
-            self.tts_engine.setProperty('voice', female_voice)
-        else:
-            self.gui.show_error("Female voice not found, using default voice")
-            
-        # Set speech rate and volume from config
-        self.tts_engine.setProperty('rate', self.config.get('speech_rate', 150))
-        self.tts_engine.setProperty('volume', self.config.get('speech_volume', 0.9))
-        
-        # Load environment variables
-        self.picovoice_key = os.getenv('PICOVOICE_ACCESS_KEY')
-        if not self.picovoice_key:
-            raise ValueError("PICOVOICE_ACCESS_KEY not found in environment variables")
-            
-        # Initialize wake word detector with environment variable
+        # Initialize wake word detector
         self.porcupine = pvporcupine.create(
-            access_key=self.picovoice_key,
-            sensitivities=[self.config.get('wake_word_sensitivity', 0.7)],
+            access_key=os.getenv('PICOVOICE_ACCESS_KEY'),
+            sensitivities=[self.config['wake_word_sensitivity']],
             keyword_paths=[self.get_wake_word_path()]
         )
         
@@ -149,6 +126,19 @@ class VoiceEngine:
         def _speak(txt):
             try:
                 engine = pyttsx3.init()
+                voices = engine.getProperty('voices')
+                
+                # Try to find a female voice first
+                female_voice = None
+                for voice in voices:
+                    if 'female' in voice.name.lower():
+                        female_voice = voice
+                        break
+                
+                # Set voice - use female if found, otherwise use default
+                if female_voice:
+                    engine.setProperty('voice', female_voice.id)
+                
                 engine.setProperty('rate', self.config['speech_rate'])
                 engine.setProperty('volume', self.config['speech_volume'])
                 engine.say(txt)

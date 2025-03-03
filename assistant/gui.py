@@ -10,170 +10,271 @@ class StudentAssistantGUI:
         self.config = config
         
         master.title("ANNA - AI Student Assistant")
-        master.geometry("1200x800")
-        master.configure(bg='#000000')
+        master.geometry("1000x700")
+        master.configure(bg='#1a1a1a')
         
         self.setup_theme()
-        self.create_header()
-        self.create_main_interface()
+        self.create_layout()
         self.setup_bindings()
         
         self.voice_resp_var = tk.BooleanVar(value=self.config['voice_response'])
         self.beep_sound_var = tk.BooleanVar(value=self.config['beep_sound'])
-        self.create_settings_button()
+        self.sidebar_visible = True
 
     def setup_theme(self):
         self.style = ttk.Style()
         self.style.theme_use('black')
-        self.style.configure('TButton', 
-                           font=('Terminal', 12), 
-                           foreground='#00ff00', 
-                           background='#002200', 
-                           bordercolor='#00ff00')
-        self.style.map('TButton', 
-                      foreground=[('active', '#00ff00'), ('pressed', '#000000')],
-                      background=[('active', '#004400'), ('pressed', '#00ff00')])
-        self.style.configure('TLabel', 
-                           font=('Terminal', 10), 
-                           foreground='#00ff00', 
-                           background='#000000')
-        self.style.configure('TEntry', 
-                           fieldbackground='#001100', 
-                           foreground='#00ff00', 
-                           insertcolor='#00ff00')
-        self.style.configure('Mood.TLabel',
-                           font=('Terminal', 12),
-                           foreground='#00ffff')
-        self.style.configure('Study.TFrame',
-                           background='#001100')
-
-    def create_header(self):
-        header = ttk.Frame(self.master)
-        header.pack(fill=tk.X, pady=5)
-        title = ttk.Label(header, 
-                        text="◈⃤ ANNA v2.0 - Advanced Neural Network Assistant ◈⃤", 
-                        font=('OCR A Extended', 20),
-                        style='TLabel')
-        title.pack(pady=10)
         
-        # Grid background
-        canvas = tk.Canvas(self.master, bg='#000000', highlightthickness=0)
-        canvas.pack(fill=tk.BOTH, expand=True)
-        for i in range(0, 1200, 20):
-            canvas.create_line(i, 0, i, 800, fill='#003300')
-        for i in range(0, 800, 20):
-            canvas.create_line(0, i, 1200, i, fill='#003300')
+        # Modern button style
+        self.style.configure('Custom.TButton',
+                           font=('Segoe UI', 10),
+                           foreground='#ffffff',
+                           background='#2d2d2d',
+                           bordercolor='#3d3d3d',
+                           padding=5)
+        self.style.map('Custom.TButton',
+                      foreground=[('active', '#ffffff'), ('pressed', '#cccccc')],
+                      background=[('active', '#3d3d3d'), ('pressed', '#2d2d2d')])
+        
+        # Label styles
+        self.style.configure('Title.TLabel',
+                           font=('Segoe UI', 16, 'bold'),
+                           foreground='#ffffff',
+                           background='#1a1a1a')
+        self.style.configure('Subtitle.TLabel',
+                           font=('Segoe UI', 12),
+                           foreground='#cccccc',
+                           background='#1a1a1a')
+        
+        # Frame styles
+        self.style.configure('Sidebar.TFrame',
+                           background='#2d2d2d')
+        self.style.configure('Content.TFrame',
+                           background='#1a1a1a')
 
-    def create_main_interface(self):
+    def create_layout(self):
         # Main container
-        main_container = ttk.Frame(self.master)
-        main_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        self.main_container = ttk.Frame(self.master, style='Content.TFrame')
+        self.main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Collapsible sidebar
+        self.sidebar = ttk.Frame(self.main_container, style='Sidebar.TFrame', width=250)
+        self.sidebar.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+        self.sidebar.pack_propagate(False)
+        
+        # Toggle sidebar button
+        self.toggle_btn = ttk.Button(self.sidebar,
+                                   text='≡',
+                                   style='Custom.TButton',
+                                   command=self.toggle_sidebar)
+        self.toggle_btn.pack(anchor='ne', padx=5, pady=5)
+        
+        # Create sidebar content
+        self.create_sidebar_content()
+        
+        # Main content area
+        self.content = ttk.Frame(self.main_container, style='Content.TFrame')
+        self.content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=2, pady=2)
+        
+        # Create main content
+        self.create_main_content()
 
-        # Left panel - Study Tools
-        left_panel = ttk.Frame(main_container, style='Study.TFrame')
-        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10)
+    def create_sidebar_content(self):
+        # Study tools section
+        tools_frame = ttk.LabelFrame(self.sidebar, text='Study Tools', style='Custom.TButton')
+        tools_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        self.create_study_tools(left_panel)
+        ttk.Button(tools_frame, text='Start 25min', style='Custom.TButton',
+                   command=lambda: self.command_handler.process_command("start 25 minute timer")).pack(fill=tk.X, padx=2, pady=2)
+        ttk.Button(tools_frame, text='Start 45min', style='Custom.TButton',
+                   command=lambda: self.command_handler.process_command("start 45 minute timer")).pack(fill=tk.X, padx=2, pady=2)
+        
+        # Flashcards section
+        cards_frame = ttk.LabelFrame(self.sidebar, text='Flashcards', style='Custom.TButton')
+        cards_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Button(cards_frame, text='Review Cards', style='Custom.TButton',
+                   command=lambda: self.command_handler.process_command("review flashcards")).pack(fill=tk.X, padx=2, pady=2)
+        ttk.Button(cards_frame, text='Add Card', style='Custom.TButton',
+                   command=self.show_add_flashcard_dialog).pack(fill=tk.X, padx=2, pady=2)
+        ttk.Button(cards_frame, text='Delete Card', style='Custom.TButton',
+                   command=self.show_delete_flashcard_dialog).pack(fill=tk.X, padx=2, pady=2)
 
-        # Center panel - Main interaction
-        center_panel = ttk.Frame(main_container)
-        center_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10)
+        # Schedule section
+        schedule_frame = ttk.LabelFrame(self.sidebar, text='Schedule', style='Custom.TButton')
+        schedule_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        self.create_interaction_area(center_panel)
+        ttk.Button(schedule_frame, text='View Today', style='Custom.TButton',
+                   command=lambda: self.command_handler.process_command("schedule today")).pack(fill=tk.X, padx=2, pady=2)
+        ttk.Button(schedule_frame, text='Delete Schedule', style='Custom.TButton',
+                   command=self.show_delete_schedule_dialog).pack(fill=tk.X, padx=2, pady=2)
 
-        # Right panel - Status and Mood
-        right_panel = ttk.Frame(main_container)
-        right_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10)
+    def create_main_content(self):
+        # Header with title and status
+        header = ttk.Frame(self.content, style='Content.TFrame')
+        header.pack(fill=tk.X, padx=10, pady=5)
         
-        self.create_status_panel(right_panel)
-
-    def create_study_tools(self, parent):
-        ttk.Label(parent, text="STUDY TOOLS", font=('OCR A Extended', 14), style='TLabel').pack(pady=10)
+        ttk.Label(header, text='ANNA', style='Title.TLabel').pack(side=tk.LEFT)
+        self.status_label = ttk.Label(header, text='ONLINE', style='Subtitle.TLabel')
+        self.status_label.pack(side=tk.RIGHT)
         
-        # Timer controls
-        timer_frame = ttk.Frame(parent)
-        timer_frame.pack(fill=tk.X, pady=5)
-        ttk.Button(timer_frame, text="Start 25min", command=lambda: self.command_handler.process_command("start 25 minute timer")).pack(side=tk.LEFT, padx=5)
-        ttk.Button(timer_frame, text="Start 45min", command=lambda: self.command_handler.process_command("start 45 minute timer")).pack(side=tk.LEFT, padx=5)
-
-        # Flashcard controls
-        flashcard_frame = ttk.Frame(parent)
-        flashcard_frame.pack(fill=tk.X, pady=10)
-        ttk.Button(flashcard_frame, text="Review Cards", command=lambda: self.command_handler.process_command("review flashcards")).pack(fill=tk.X, pady=5)
-        ttk.Button(flashcard_frame, text="Add Card", command=self.show_add_flashcard_dialog).pack(fill=tk.X, pady=5)
-
-    def create_interaction_area(self, parent):
-        # Voice control
-        input_frame = ttk.Frame(parent)
-        input_frame.pack(pady=20)
+        # Create notebook for tabs
+        self.notebook = ttk.Notebook(self.content)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        self.voice_button = ttk.Button(input_frame, 
-                                     text="◈ INITIATE VOICE LINK", 
-                                     command=self.toggle_listening)
-        self.voice_button.pack(side=tk.LEFT, padx=10)
+        # Chat tab
+        chat_frame = ttk.Frame(self.notebook, style='Content.TFrame')
+        self.notebook.add(chat_frame, text='Chat')
         
-        # Text input
-        self.text_input = ttk.Entry(input_frame, 
-                                  width=60,
-                                  font=('Consolas', 12))
-        self.text_input.pack(side=tk.LEFT, padx=10)
-        
-        # Output area
-        self.output_area = scrolledtext.ScrolledText(parent, 
+        # Output area with custom styling
+        self.output_area = scrolledtext.ScrolledText(chat_frame,
                                                    wrap=tk.WORD,
-                                                   font=('Consolas', 12),
-                                                   bg='#001100',
-                                                   fg='#00ff00',
+                                                   font=('Consolas', 11),
+                                                   bg='#2d2d2d',
+                                                   fg='#ffffff',
+                                                   insertbackground='#ffffff',
+                                                   selectbackground='#404040',
                                                    height=20)
-        self.output_area.pack(fill=tk.BOTH, expand=True, pady=10)
+        self.output_area.pack(fill=tk.BOTH, expand=True)
+        
+        # Assignments tab
+        assignments_frame = ttk.Frame(self.notebook, style='Content.TFrame')
+        self.notebook.add(assignments_frame, text='Assignments')
+        self.assignments_area = scrolledtext.ScrolledText(assignments_frame,
+                                                        wrap=tk.WORD,
+                                                        font=('Segoe UI', 11),
+                                                        bg='#2d2d2d',
+                                                        fg='#ffffff')
+        self.assignments_area.pack(fill=tk.BOTH, expand=True)
+        
+        # Flashcards tab
+        flashcards_frame = ttk.Frame(self.notebook, style='Content.TFrame')
+        self.notebook.add(flashcards_frame, text='Flashcards')
+        self.flashcards_area = scrolledtext.ScrolledText(flashcards_frame,
+                                                       wrap=tk.WORD,
+                                                       font=('Segoe UI', 11),
+                                                       bg='#2d2d2d',
+                                                       fg='#ffffff')
+        self.flashcards_area.pack(fill=tk.BOTH, expand=True)
+        
+        # Schedule tab
+        schedule_frame = ttk.Frame(self.notebook, style='Content.TFrame')
+        self.notebook.add(schedule_frame, text='Schedule')
+        self.schedule_area = scrolledtext.ScrolledText(schedule_frame,
+                                                     wrap=tk.WORD,
+                                                     font=('Segoe UI', 11),
+                                                     bg='#2d2d2d',
+                                                     fg='#ffffff')
+        self.schedule_area.pack(fill=tk.BOTH, expand=True)
+        
+        # Input area
+        input_frame = ttk.Frame(self.content, style='Content.TFrame')
+        input_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        self.voice_button = ttk.Button(input_frame,
+                                      text='🎤',
+                                      style='Custom.TButton',
+                                      command=self.toggle_listening)
+        self.voice_button.pack(side=tk.LEFT, padx=2)
+        
+        self.text_input = ttk.Entry(input_frame,
+                                   font=('Segoe UI', 11),
+                                   background='#2d2d2d',
+                                   foreground='#ffffff')
+        self.text_input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=2)
+        
+        ttk.Button(input_frame,
+                   text='Send',
+                   style='Custom.TButton',
+                   command=self.send_message).pack(side=tk.RIGHT, padx=2)
 
-    def create_status_panel(self, parent):
-        ttk.Label(parent, text="SYSTEM STATUS", font=('OCR A Extended', 14), style='TLabel').pack(pady=10)
-        
-        # Mood indicator
-        self.mood_label = ttk.Label(parent, text="MOOD: NEUTRAL", style='Mood.TLabel')
-        self.mood_label.pack(pady=5)
-        
-        # Language selector
-        lang_frame = ttk.Frame(parent)
-        lang_frame.pack(fill=tk.X, pady=10)
-        ttk.Label(lang_frame, text="LANGUAGE:", style='TLabel').pack(side=tk.LEFT)
-        langs = ['English', 'Spanish', 'French', 'German']
-        lang_var = tk.StringVar(value=langs[0])
-        lang_menu = ttk.OptionMenu(lang_frame, lang_var, *langs)
-        lang_menu.pack(side=tk.LEFT, padx=5)
-        
-        # Status bar
-        self.status_bar = ttk.Label(parent, 
-                                  text="SYSTEM STATUS: ONLINE",
-                                  relief='sunken',
-                                  style='TLabel',
-                                  font=('Terminal', 10, 'bold'))
-        self.status_bar.pack(fill=tk.X, pady=10)
+    def toggle_sidebar(self):
+        if self.sidebar_visible:
+            self.sidebar.pack_forget()
+            self.sidebar_visible = False
+        else:
+            self.sidebar.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+            self.sidebar_visible = True
 
-    def show_add_flashcard_dialog(self):
-        dialog = tk.Toplevel(self.master)
-        dialog.title("Add Flashcard")
-        dialog.geometry("400x300")
-        dialog.configure(bg='#000000')
-        
-        ttk.Label(dialog, text="Front:").pack(pady=5)
-        front_text = scrolledtext.ScrolledText(dialog, height=5)
-        front_text.pack(padx=10, pady=5)
-        
-        ttk.Label(dialog, text="Back:").pack(pady=5)
-        back_text = scrolledtext.ScrolledText(dialog, height=5)
-        back_text.pack(padx=10, pady=5)
-        
-        ttk.Button(dialog, 
-                  text="Save",
-                  command=lambda: self.save_flashcard(front_text.get("1.0", tk.END),
-                                                    back_text.get("1.0", tk.END),
-                                                    dialog)).pack(pady=10)
+    def send_message(self):
+        query = self.text_input.get()
+        if query.strip():
+            self.text_input.delete(0, tk.END)
+            self.output_area.insert(tk.END, f"\n[You]: {query}")
+            self.command_handler.process_command(query)
 
-    def save_flashcard(self, front, back, dialog):
-        self.command_handler.process_command(f"add flashcard {front.strip()}: {back.strip()}")
-        dialog.destroy()
+    def display_response(self, text):
+        self.output_area.insert(tk.END, f"\n[ANNA]: {text}")
+        self.output_area.see(tk.END)
+
+    def update_assignments(self, assignments):
+        """Update assignments tab with current assignments"""
+        self.assignments_area.delete('1.0', tk.END)
+        if not assignments:
+            self.assignments_area.insert(tk.END, "No assignments yet.")
+            return
+        
+        for assignment in assignments:
+            due_date = assignment.get('due_date', 'No due date')
+            status = assignment.get('status', 'Pending')
+            task = assignment.get('task', '')
+            
+            self.assignments_area.insert(tk.END, 
+                f"\n📝 Task: {task}\n")
+            self.assignments_area.insert(tk.END,
+                f"   Due: {due_date} | Status: {status}\n")
+            self.assignments_area.insert(tk.END, "   " + "-"*40 + "\n")
+
+    def update_flashcards(self, flashcards):
+        """Update flashcards tab with current flashcards"""
+        self.flashcards_area.delete('1.0', tk.END)
+        if not flashcards:
+            self.flashcards_area.insert(tk.END, "No flashcards yet.")
+            return
+            
+        for card in flashcards:
+            front = card.get('front', '')
+            back = card.get('back', '')
+            deck = card.get('deck', 'Default')
+            next_review = card.get('next_review', 'Not scheduled')
+            
+            self.flashcards_area.insert(tk.END,
+                f"\n📚 Deck: {deck}\n")
+            self.flashcards_area.insert(tk.END,
+                f"Front: {front}\n")
+            self.flashcards_area.insert(tk.END,
+                f"Back: {back}\n")
+            self.flashcards_area.insert(tk.END,
+                f"Next Review: {next_review}\n")
+            self.flashcards_area.insert(tk.END, "   " + "-"*40 + "\n")
+
+    def update_schedule(self, schedule):
+        """Update schedule tab with current schedule"""
+        self.schedule_area.delete('1.0', tk.END)
+        if not schedule:
+            self.schedule_area.insert(tk.END, "No scheduled events.")
+            return
+            
+        for event in schedule:
+            title = event.get('title', '')
+            time = event.get('time', 'No time set')
+            duration = event.get('duration', '')
+            status = event.get('status', 'Scheduled')
+            
+            self.schedule_area.insert(tk.END,
+                f"\n📅 {title}\n")
+            self.schedule_area.insert(tk.END,
+                f"   Time: {time}\n")
+            if duration:
+                self.schedule_area.insert(tk.END,
+                    f"   Duration: {duration}\n")
+            self.schedule_area.insert(tk.END,
+                f"   Status: {status}\n")
+            self.schedule_area.insert(tk.END, "   " + "-"*40 + "\n")
+
+    def setup_bindings(self):
+        self.text_input.bind("<Return>", lambda e: self.send_message())
+        self.master.bind("<Control-b>", lambda e: self.toggle_sidebar())
 
     def toggle_listening(self):
         self.command_handler.toggle_listening()
@@ -181,149 +282,114 @@ class StudentAssistantGUI:
 
     def update_ui_state(self, is_listening=False):
         if is_listening:
-            self.voice_button.config(text="◈ TERMINATE VOICE LINK")
-            self.status_bar.config(text=" LISTENING... ", foreground='#00ff00')
-            self.animate_pulse()
+            self.voice_button.configure(text='⏹')
+            self.status_label.configure(text='LISTENING...')
         else:
-            self.voice_button.config(text="◈ INITIATE VOICE LINK")
-            self.status_bar.config(text="SYSTEM STATUS: STANDBY", foreground='#00ff00')
+            self.voice_button.configure(text='🎤')
+            self.status_label.configure(text='ONLINE')
+    def show_add_flashcard_dialog(self):
+        dialog = tk.Toplevel(self.master)
+        dialog.title("Add Flashcard")
+        dialog.geometry("400x300")
+        dialog.configure(bg='#1a1a1a')
+        dialog.transient(self.master)
+        dialog.grab_set()
 
-    def animate_pulse(self):
-        if hasattr(self.command_handler, 'is_listening') and self.command_handler.is_listening:
-            current_color = self.status_bar.cget('foreground')
-            new_color = '#009900' if current_color == '#00ff00' else '#00ff00'
-            self.status_bar.config(foreground=new_color)
-            self.master.after(500, self.animate_pulse)
+        # Create and pack the front side entry
+        front_frame = ttk.Frame(dialog, style='Content.TFrame')
+        front_frame.pack(fill=tk.X, padx=10, pady=5)
+        ttk.Label(front_frame, text="Front:", style='Subtitle.TLabel').pack(anchor='w')
+        front_text = scrolledtext.ScrolledText(front_frame, height=4, width=40,
+                                            bg='#2d2d2d', fg='#ffffff',
+                                            font=('Segoe UI', 10))
+        front_text.pack(fill=tk.X)
 
-    def display_response(self, text):
-        self.output_area.insert(tk.END, f"\n◈ ANNA: {text}")
-        self.output_area.see(tk.END)
+        # Create and pack the back side entry
+        back_frame = ttk.Frame(dialog, style='Content.TFrame')
+        back_frame.pack(fill=tk.X, padx=10, pady=5)
+        ttk.Label(back_frame, text="Back:", style='Subtitle.TLabel').pack(anchor='w')
+        back_text = scrolledtext.ScrolledText(back_frame, height=4, width=40,
+                                           bg='#2d2d2d', fg='#ffffff',
+                                           font=('Segoe UI', 10))
+        back_text.pack(fill=tk.X)
 
-    def show_error(self, message):
-        self.status_bar.config(text=f"ERROR: {message}", foreground='#ff0055')
+        def save_flashcard():
+            front = front_text.get("1.0", tk.END).strip()
+            back = back_text.get("1.0", tk.END).strip()
+            if front and back:
+                self.command_handler.process_command(f"add flashcard {front}: {back}")
+                dialog.destroy()
+            else:
+                tk.messagebox.showwarning("Warning", "Both front and back must be filled out")
 
-    def setup_bindings(self):
-        self.text_input.bind("<Return>", self.handle_text_input)
+        # Button frame
+        button_frame = ttk.Frame(dialog, style='Content.TFrame')
+        button_frame.pack(fill=tk.X, padx=10, pady=10)
+        ttk.Button(button_frame, text="Save", style='Custom.TButton',
+                  command=save_flashcard).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Cancel", style='Custom.TButton',
+                  command=dialog.destroy).pack(side=tk.RIGHT)
 
-    def handle_text_input(self, event):
-        query = self.text_input.get()
-        self.text_input.delete(0, tk.END)
-        self.output_area.insert(tk.END, f"\n◈ USER: {query}")
-        self.command_handler.process_command(query)
+    def show_delete_flashcard_dialog(self):
+        dialog = tk.Toplevel(self.master)
+        dialog.title("Delete Flashcard")
+        dialog.geometry("300x150")
+        dialog.configure(bg='#1a1a1a')
+        dialog.transient(self.master)
+        dialog.grab_set()
 
-    def create_settings_button(self):
-        settings_btn = ttk.Button(self.master, 
-                                text="⚙",
-                                command=self.create_settings_panel)
-        settings_btn.place(relx=0.95, rely=0.02, anchor="ne")
+        # Create and pack the ID entry
+        input_frame = ttk.Frame(dialog, style='Content.TFrame')
+        input_frame.pack(fill=tk.X, padx=10, pady=5)
+        ttk.Label(input_frame, text="Flashcard ID:", style='Subtitle.TLabel').pack(anchor='w')
+        id_entry = ttk.Entry(input_frame, font=('Segoe UI', 10))
+        id_entry.pack(fill=tk.X, pady=5)
 
-    def create_settings_panel(self):
-        settings_win = tk.Toplevel(self.master)
-        settings_win.title("Settings")
-        settings_win.geometry("500x600")
-        settings_win.configure(bg='#000000')
-        
-        # Create a scrollable frame
-        canvas = tk.Canvas(settings_win, bg='#000000')
-        scrollbar = ttk.Scrollbar(settings_win, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
+        def delete_flashcard():
+            try:
+                card_id = int(id_entry.get().strip())
+                if tk.messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this flashcard?"):
+                    self.command_handler.process_command(f"delete flashcard {card_id}")
+                    dialog.destroy()
+            except ValueError:
+                tk.messagebox.showwarning("Warning", "Please enter a valid ID number")
 
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        # Button frame
+        button_frame = ttk.Frame(dialog, style='Content.TFrame')
+        button_frame.pack(fill=tk.X, padx=10, pady=10)
+        ttk.Button(button_frame, text="Delete", style='Custom.TButton',
+                  command=delete_flashcard).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Cancel", style='Custom.TButton',
+                  command=dialog.destroy).pack(side=tk.RIGHT)
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+    def show_delete_schedule_dialog(self):
+        dialog = tk.Toplevel(self.master)
+        dialog.title("Delete Schedule")
+        dialog.geometry("300x150")
+        dialog.configure(bg='#1a1a1a')
+        dialog.transient(self.master)
+        dialog.grab_set()
 
-        # API Settings
-        api_frame = ttk.LabelFrame(scrollable_frame, text="API Configuration")
-        api_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        # Weather API
-        ttk.Label(api_frame, text="Weather API Key:").pack(pady=5)
-        weather_api_entry = ttk.Entry(api_frame, width=40)
-        weather_api_entry.pack(pady=5)
-        if os.getenv('WEATHER_API_KEY'):
-            weather_api_entry.insert(0, os.getenv('WEATHER_API_KEY'))
+        # Create and pack the ID entry
+        input_frame = ttk.Frame(dialog, style='Content.TFrame')
+        input_frame.pack(fill=tk.X, padx=10, pady=5)
+        ttk.Label(input_frame, text="Schedule ID:", style='Subtitle.TLabel').pack(anchor='w')
+        id_entry = ttk.Entry(input_frame, font=('Segoe UI', 10))
+        id_entry.pack(fill=tk.X, pady=5)
 
-        # Picovoice API
-        ttk.Label(api_frame, text="Picovoice API Key:").pack(pady=5)
-        picovoice_api_entry = ttk.Entry(api_frame, width=40)
-        picovoice_api_entry.pack(pady=5)
-        if os.getenv('PICOVOICE_ACCESS_KEY'):
-            picovoice_api_entry.insert(0, os.getenv('PICOVOICE_ACCESS_KEY'))
+        def delete_schedule():
+            try:
+                schedule_id = int(id_entry.get().strip())
+                if tk.messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this schedule?"):
+                    self.command_handler.process_command(f"delete schedule {schedule_id}")
+                    dialog.destroy()
+            except ValueError:
+                tk.messagebox.showwarning("Warning", "Please enter a valid ID number")
 
-        # Location Settings
-        location_frame = ttk.LabelFrame(scrollable_frame, text="Location Settings")
-        location_frame.pack(fill=tk.X, padx=10, pady=5)
-
-        ttk.Label(location_frame, text="Default City:").pack(pady=5)
-        city_entry = ttk.Entry(location_frame, width=40)
-        city_entry.pack(pady=5)
-        if os.getenv('DEFAULT_CITY'):
-            city_entry.insert(0, os.getenv('DEFAULT_CITY'))
-
-        # Voice Settings
-        voice_frame = ttk.LabelFrame(scrollable_frame, text="Voice Settings")
-        voice_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        ttk.Checkbutton(voice_frame, 
-                       text="Enable Voice Responses",
-                       variable=self.voice_resp_var).pack(pady=5)
-        ttk.Checkbutton(voice_frame, 
-                       text="Enable Beep Sound",
-                       variable=self.beep_sound_var).pack(pady=5)
-        
-        # Theme Settings
-        theme_frame = ttk.LabelFrame(scrollable_frame, text="Theme Settings")
-        theme_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        themes = ['cyberpunk', 'matrix', 'minimal']
-        theme_var = tk.StringVar(value=themes[0])
-        ttk.OptionMenu(theme_frame, theme_var, *themes).pack(pady=5)
-        
-        # Save Button
-        ttk.Button(scrollable_frame, 
-                  text="Save Settings",
-                  command=lambda: self.save_settings(
-                      weather_api=weather_api_entry.get(),
-                      picovoice_api=picovoice_api_entry.get(),
-                      default_city=city_entry.get()
-                  )).pack(pady=10)
-
-        # Pack the canvas and scrollbar
-        canvas.pack(side="left", fill="both", expand=True, padx=10, pady=10)
-        scrollbar.pack(side="right", fill="y")
-
-    def save_settings(self, weather_api, picovoice_api, default_city):
-        self.config['voice_response'] = self.voice_resp_var.get()
-        self.config['beep_sound'] = self.beep_sound_var.get()
-        self.config.save_config()
-        
-        # Update environment variables
-        env_updates = {
-            'WEATHER_API_KEY': weather_api,
-            'PICOVOICE_ACCESS_KEY': picovoice_api,
-            'DEFAULT_CITY': default_city
-        }
-        
-        # Read existing .env file
-        env_content = {}
-        if os.path.exists('.env'):
-            with open('.env', 'r') as f:
-                for line in f:
-                    if '=' in line:
-                        key, value = line.strip().split('=', 1)
-                        env_content[key] = value
-        
-        # Update with new values
-        env_content.update(env_updates)
-        
-        # Write back to .env file
-        with open('.env', 'w') as f:
-            for key, value in env_content.items():
-                if value:  # Only write non-empty values
-                    f.write(f"{key}={value}\n")
-        
-        self.show_error("Settings saved successfully")
+        # Button frame
+        button_frame = ttk.Frame(dialog, style='Content.TFrame')
+        button_frame.pack(fill=tk.X, padx=10, pady=10)
+        ttk.Button(button_frame, text="Delete", style='Custom.TButton',
+                  command=delete_schedule).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Cancel", style='Custom.TButton',
+                  command=dialog.destroy).pack(side=tk.RIGHT)

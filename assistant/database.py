@@ -189,3 +189,19 @@ class DatabaseHandler:
             return True
         except ValueError:
             return False
+
+    # ----------------- Deletion Methods -----------------
+    def delete_flashcard(self, card_id):
+        with self._get_cursor() as c:
+            c.execute('DELETE FROM flashcards WHERE id = ?', (card_id,))
+            return c.rowcount > 0
+
+    def delete_schedule(self, schedule_id):
+        with self._get_cursor() as c:
+            c.execute('DELETE FROM schedule WHERE id = ?', (schedule_id,))
+            return c.rowcount > 0
+
+    def delete_assignment(self, assignment_id):
+        with self._get_cursor() as c:
+            c.execute('DELETE FROM assignments WHERE id = ?', (assignment_id,))
+            return c.rowcount > 0

@@ -19,79 +19,133 @@ class CommandHandler:
         self.app_map = {
             'music player': 'spotify',
             'email client': 'thunderbird',
-            'browser': 'firefox',
-            'text editor': 'notepad'
+            'browser': 'Opera Gx Browser',
+            'text editor': 'Vs Code',
+            'downloads': os.path.expanduser('~\Downloads'),
+            'documents': os.path.expanduser('~\Documents'),
+            'desktop': os.path.expanduser('~\Desktop'),
+            'chrome': 'chrome',
+            'edge': 'msedge',
+            'word': 'winword',
+            'excel': 'excel',
+            'powerpoint': 'powerpnt',
+            'calculator': 'calc',
+            'paint': 'mspaint',
+            'notepad': 'notepad',
+            'explorer': 'explorer',
+            'task manager': 'taskmgr',
+            'control panel': 'control',
+            'settings': 'ms-settings:',
+            'cmd': 'cmd',
+            'powershell': 'powershell',
+            'terminal': 'wt',
+            'discord': 'discord'
         }
+        self.custom_apps = {}
+        # Add conversation context
+        self.conversation_context = {
+            'last_topic': None,
+            'follow_up_needed': False,
+            'user_name': None,
+            'mood': 'neutral'
+        }
+        self.casual_acknowledgments = [
+            "Sure thing!", "Got it!", "I'm on it!",
+            "No problem!", "Alright!", "You got it!"
+        ]
+        self.empathy_responses = {
+            'stress': ["I understand this might be stressful.", "Let's tackle this together."],
+            'success': ["That's fantastic!", "I'm glad to hear that!"],
+            'tired': ["Maybe we should take a short break?", "Remember to rest when needed."]
+        }
+
+    def get_contextual_response(self, command_type):
+        import random
+        response = random.choice(self.casual_acknowledgments) + " "
+        
+        if command_type == 'study':
+            if self.conversation_context['last_topic'] == 'study':
+                response += "Still focusing on your studies? That's great! "
+            self.conversation_context['follow_up_needed'] = True
+        
+        elif command_type == 'timer':
+            if 'stress' in command.lower():
+                response += random.choice(self.empathy_responses['stress'])
+        
+        return response
 
     def process_command(self, command):
         print(f"[DEBUG] Received command: {command}")  # Debug line
         command = command.lower()
-        response = "Command not recognized"
+        response = ""
         
         # Add personality and contextual awareness
         self.last_command_time = getattr(self, 'last_command_time', None)
         current_time = datetime.now()
         
-        # Add time-based greetings
+        # Add time-based greetings with personality
         if self.last_command_time is None or (current_time - self.last_command_time).seconds > 300:
             hour = current_time.hour
             if 5 <= hour < 12:
-                response = "Good morning! "
+                response = "Good morning! Hope you're ready for a productive day! "
             elif 12 <= hour < 17:
-                response = "Good afternoon! "
+                response = "Good afternoon! How's your day going? "
             else:
-                response = "Good evening! "
+                response = "Good evening! Still working hard, I see! "
         
         self.last_command_time = current_time
         
         try:
             # Study Commands
             if "timer" in command and ("start" in command or "minute" in command):
-                response = self.handle_study_timer(command)
+                base_response = self.get_contextual_response('timer')
+                response += base_response + self.handle_study_timer(command)
+                if self.conversation_context['follow_up_needed']:
+                    response += "\nWould you like me to set up any study materials while the timer runs?"
+            
             elif "flashcard" in command:
-                response = self.handle_flashcards(command)
+                base_response = self.get_contextual_response('study')
+                response += base_response + self.handle_flashcards(command)
+                if 'create' in command:
+                    response += "\nGreat job adding flashcards! Would you like to do a quick review session?"
+            
             elif "assignment" in command:
-                response = self.handle_assignments(command)
-            elif "schedule" in command:
-                response = self.handle_schedule(command)
+                base_response = self.get_contextual_response('study')
+                response += base_response + self.handle_assignments(command)
+                if 'due' in command:
+                    response += "\nI can help you break this down into manageable tasks. Would that be helpful?"
             
-            # System Commands
+            # Keep existing command handling with added personality
             elif "time" in command or "date" in command:
-                response = self.get_current_time_date(command)
-            elif "open" in command:
-                response = self.open_application(command)
-            elif "sleep" in command:
-                response = self.toggle_listening()
+                response += self.get_current_time_date(command)
+                response += "\nNeed me to set any reminders for you?"
             
-            # Media Commands
             elif "music" in command or "play" in command:
-                response = self.control_music(command)
+                response += self.get_contextual_response('entertainment')
+                response += self.control_music(command)
+                if 'study' in self.conversation_context['last_topic']:
+                    response += "\nI can help you find some focus-friendly music if you'd like."
             
-            # Research Commands
-            elif "wikipedia" in command:
-                response = self.search_wikipedia(command)
-            elif "search web" in command:
-                response = self.search_duckduckgo(command)
+            # Add application opening command handling
+            elif any(app_name in command for app_name in self.app_map.keys()) or "open" in command:
+                response += self.open_application(command)
             
-            # File Management
-            elif "open file" in command:
-                response = self.open_file(command)
+            # Update conversation context
+            if "study" in command or "assignment" in command or "flashcard" in command:
+                self.conversation_context['last_topic'] = 'study'
+            elif "music" in command or "play" in command:
+                self.conversation_context['last_topic'] = 'entertainment'
             
-            # Email Commands
-            elif "email" in command:
-                response = self.handle_email(command)
-            
-            # Help Commands
-            elif "help" in command:
-                response = self.show_help()
+            if not response:
+                response = "I'm not quite sure about that one. Could you rephrase it, or would you like to know what I can help you with?"
             
         except Exception as e:
-            response = f"Error processing command: {str(e)}"
+            response = f"Oops! Something went wrong there. Mind trying that again? Error: {str(e)}"
         
         self.gui.display_response(response)
 
         if self.config['voice_response']:
-            self.voice_engine.speak(response)  # Proper indentation
+            self.voice_engine.speak(response)
         return response
 
     def toggle_listening(self):
@@ -123,6 +177,14 @@ class CommandHandler:
                 self.study_manager.create_flashcard(front, back)
                 return f"Added flashcard: {front}"
             return "Use format: 'add flashcard Front: Back'"
+        elif "delete" in command:
+            try:
+                card_id = int(command.split("delete flashcard")[-1].strip())
+                if self.study_manager.db.delete_flashcard(card_id):
+                    return f"Flashcard {card_id} deleted successfully"
+                return "Flashcard not found"
+            except ValueError:
+                return "Use format: 'delete flashcard [ID]'"
         elif "review" in command:
             cards = self.study_manager.get_due_cards()
             return f"{len(cards)} cards due" if cards else "No cards due"
@@ -136,6 +198,14 @@ class CommandHandler:
                 self.study_manager.db.add_assignment("General", task, due_date)
                 return f"Added assignment: {task} due {due_date}"
             return "Use format: 'add assignment Task due Date'"
+        elif "delete" in command:
+            try:
+                assignment_id = int(command.split("delete assignment")[-1].strip())
+                if self.study_manager.db.delete_assignment(assignment_id):
+                    return f"Assignment {assignment_id} deleted successfully"
+                return "Assignment not found"
+            except ValueError:
+                return "Use format: 'delete assignment [ID]'"
         elif "list" in command:
             assignments = self.study_manager.db.get_due_assignments()
             return "\n".join([f"{a[2]} (Due: {a[3]})" for a in assignments]) if assignments else "No assignments"
@@ -145,25 +215,114 @@ class CommandHandler:
         if "today" in command:
             schedule = self.study_manager.db.get_daily_schedule(datetime.now().strftime("%a").lower())
             return "\n".join([f"{s[3]} at {s[2]}" for s in schedule]) if schedule else "No classes today"
+        elif "delete" in command:
+            try:
+                schedule_id = int(command.split("delete schedule")[-1].strip())
+                if self.study_manager.db.delete_schedule(schedule_id):
+                    return f"Schedule {schedule_id} deleted successfully"
+                return "Schedule not found"
+            except ValueError:
+                return "Use format: 'delete schedule [ID]'"
         return "Schedule command not recognized"
 
     # System Methods
     def get_current_time_date(self, command):
         now = datetime.now()
         return f"{now.strftime('%H:%M')} on {now.strftime('%B %d, %Y')}"
+    def register_custom_app(self, name, path):
+        """Register a custom application or file path"""
+        if os.path.exists(path):
+            self.custom_apps[name.lower()] = path
+            return f"Registered {name} successfully"
+        return f"Path not found: {path}"
 
     def open_application(self, command):
-        for app_name, exe in self.app_map.items():
+        command = command.lower()
+        # First check custom apps
+        for app_name, path in self.custom_apps.items():
             if app_name in command:
                 try:
                     if sys.platform == "win32":
-                        os.system(f"start {exe}")
+                        os.startfile(path)
                     else:
-                        subprocess.run([exe])
+                        subprocess.run([path])
                     return f"Opening {app_name}"
                 except Exception as e:
                     return f"Error opening {app_name}: {str(e)}"
-        return "Application not found"
+
+        # Then check default apps
+        for app_name, exe in self.app_map.items():
+            if app_name in command:
+                try:
+                    # Handle directory paths
+                    if os.path.isdir(exe):
+                        if sys.platform == "win32":
+                            os.startfile(exe)
+                        else:
+                            subprocess.run(['xdg-open', exe])
+                        return f"Opening {app_name}"
+
+                    # Additional search paths for Windows
+                    search_paths = [
+                        os.environ.get('ProgramFiles', ''),
+                        os.environ.get('ProgramFiles(x86)', ''),
+                        os.environ.get('LocalAppData', ''),
+                        os.environ.get('AppData', ''),
+                        os.path.join(os.environ.get('LocalAppData', ''), 'Programs'),
+                        os.path.join(os.environ.get('AppData', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs')
+                    ]
+                    
+                    # Search for the executable
+                    for search_path in search_paths:
+                        if not search_path:
+                            continue
+                            
+                        # Direct path check
+                        direct_path = os.path.join(search_path, f"{exe}.exe")
+                        if os.path.exists(direct_path):
+                            if sys.platform == "win32":
+                                os.startfile(direct_path)
+                            else:
+                                subprocess.run([direct_path])
+                            return f"Opening {app_name}"
+                        
+                        # Recursive search
+                        for root, dirs, files in os.walk(search_path):
+                            if f"{exe}.exe" in files:
+                                full_path = os.path.join(root, f"{exe}.exe")
+                                if sys.platform == "win32":
+                                    os.startfile(full_path)
+                                else:
+                                    subprocess.run([full_path])
+                                return f"Opening {app_name}"
+                    
+                    # Fallback to simple command
+                    if sys.platform == "win32":
+                        try:
+                            subprocess.run([exe], shell=True)
+                            return f"Opening {app_name}"
+                        except Exception:
+                            os.system(f"start {exe}")
+                            return f"Opening {app_name}"
+                    else:
+                        subprocess.run([exe])
+                        return f"Opening {app_name}"
+                except Exception as e:
+                    return f"Error opening {app_name}: {str(e)}"
+
+        # If no application found, try to open as a file path
+        try:
+            path = command.replace("open", "").strip()
+            if os.path.exists(path):
+                if sys.platform == "win32":
+                    os.startfile(path)
+                else:
+                    subprocess.run(['xdg-open', path])
+                return f"Opened {path}"
+        except Exception as e:
+            return f"Error opening file: {str(e)}"
+
+        return "Application or file not found"
 
     # Media Methods
     def control_music(self, command):
