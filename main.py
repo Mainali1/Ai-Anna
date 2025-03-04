@@ -10,7 +10,7 @@ from assistant.spaced_repetition import SpacedRepetitionSystem
 from ttkthemes import ThemedTk
 
 def main():
-    root = ThemedTk(theme="equilux")
+    root = ThemedTk(theme="black")
     config = ConfigManager()
     
     # Initialize core components

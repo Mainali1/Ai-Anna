@@ -3,8 +3,8 @@ import os
 from pygame import mixer
 from datetime import datetime, timedelta
 import nltk
-
-from weakref import WeakValueDictionary
+import sqlite3
+from datetime import datetime, timedelta
 
 class StudyManager:
     def __init__(self):
@@ -12,6 +12,7 @@ class StudyManager:
         self.cache = WeakValueDictionary()
     def __init__(self, db_handler):
         self.db = db_handler
+        self.setup_database()
         self.timer_active = False
         self.current_card = 0
         mixer.init()

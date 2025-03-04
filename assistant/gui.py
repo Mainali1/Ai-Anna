@@ -80,6 +80,24 @@ class StudentAssistantGUI:
         self.create_main_content()
 
     def create_sidebar_content(self):
+        # Settings section
+        settings_frame = ttk.LabelFrame(self.sidebar, text='Settings', style='Custom.TButton')
+        settings_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Voice response toggle
+        voice_check = ttk.Checkbutton(settings_frame, text='Voice Response',
+                                    variable=self.voice_resp_var,
+                                    style='Custom.TButton',
+                                    command=self.update_settings)
+        voice_check.pack(fill=tk.X, padx=2, pady=2)
+        
+        # Sound effects toggle
+        beep_check = ttk.Checkbutton(settings_frame, text='Sound Effects',
+                                   variable=self.beep_sound_var,
+                                   style='Custom.TButton',
+                                   command=self.update_settings)
+        beep_check.pack(fill=tk.X, padx=2, pady=2)
+
         # Study tools section
         tools_frame = ttk.LabelFrame(self.sidebar, text='Study Tools', style='Custom.TButton')
         tools_frame.pack(fill=tk.X, padx=5, pady=5)
@@ -393,3 +411,10 @@ class StudentAssistantGUI:
                   command=delete_schedule).pack(side=tk.RIGHT, padx=5)
         ttk.Button(button_frame, text="Cancel", style='Custom.TButton',
                   command=dialog.destroy).pack(side=tk.RIGHT)
+    def update_settings(self):
+        """Update configuration with new settings"""
+        self.config['voice_response'] = self.voice_resp_var.get()
+        self.config['beep_sound'] = self.beep_sound_var.get()
+        # Trigger config save
+        if hasattr(self.command_handler, 'config'):
+            self.command_handler.config.save_config()

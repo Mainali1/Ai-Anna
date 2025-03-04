@@ -59,7 +59,7 @@ class CommandHandler:
             'tired': ["Maybe we should take a short break?", "Remember to rest when needed."]
         }
 
-    def get_contextual_response(self, command_type):
+    def get_contextual_response(self, command_type, command=""):
         import random
         response = random.choice(self.casual_acknowledgments) + " "
         
@@ -69,7 +69,7 @@ class CommandHandler:
             self.conversation_context['follow_up_needed'] = True
         
         elif command_type == 'timer':
-            if 'stress' in command.lower():
+            if command and 'stress' in command.lower():
                 response += random.choice(self.empathy_responses['stress'])
         
         return response
