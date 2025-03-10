@@ -15,6 +15,8 @@ class CommandHandler:
         self.email_manager = email_manager
         self.config = config
         self.spaced_repetition = spaced_repetition
+        self.weather_service = WeatherService()
+        self.system_controller = SystemController()
         self.is_listening = False
         self.app_map = {
             'music player': 'spotify',
@@ -58,10 +60,54 @@ class CommandHandler:
             'success': ["That's fantastic!", "I'm glad to hear that!"],
             'tired': ["Maybe we should take a short break?", "Remember to rest when needed."]
         }
+        self.mood_transitions = {
+            'neutral': ['happy', 'curious', 'focused'],
+            'happy': ['excited', 'playful', 'neutral'],
+            'curious': ['focused', 'playful', 'neutral'],
+            'focused': ['satisfied', 'neutral', 'tired'],
+            'tired': ['neutral', 'concerned'],
+            'concerned': ['empathetic', 'neutral']
+        }
+        
+        self.mood_responses = {
+            'happy': ["I'm having a great time helping you!", "This is fun!"],
+            'curious': ["That's interesting!", "Tell me more about that!"],
+            'focused': ["Let's stay on track.", "We're making good progress."],
+            'tired': ["Maybe we should take a break soon?", "Remember to rest!"],
+            'concerned': ["Everything okay?", "Let me know if you need help."],
+            'empathetic': ["I understand how you feel.", "We'll figure this out together."]
+        }
+
+    def update_mood(self, command):
+        import random
+        current_mood = self.conversation_context['mood']
+        
+        # Update mood based on command content and context
+        if any(word in command for word in ['tired', 'exhausted', 'break']):
+            new_mood = 'tired'
+        elif any(word in command for word in ['worried', 'stress', 'anxious']):
+            new_mood = 'concerned'
+        elif any(word in command for word in ['fun', 'great', 'awesome']):
+            new_mood = 'happy'
+        elif any(word in command for word in ['interesting', 'what', 'how', 'why']):
+            new_mood = 'curious'
+        elif any(word in command for word in ['focus', 'study', 'work']):
+            new_mood = 'focused'
+        else:
+            # Randomly transition to a related mood
+            new_mood = random.choice(self.mood_transitions.get(current_mood, ['neutral']))
+        
+        self.conversation_context['mood'] = new_mood
+        return self.mood_responses.get(new_mood, [])[0] if self.mood_responses.get(new_mood) else ""
 
     def get_contextual_response(self, command_type, command=""):
         import random
         response = random.choice(self.casual_acknowledgments) + " "
+        
+        # Add mood-based response
+        mood_response = self.update_mood(command)
+        if mood_response:
+            response = mood_response + " " + response
         
         if command_type == 'study':
             if self.conversation_context['last_topic'] == 'study':
@@ -227,8 +273,46 @@ class CommandHandler:
 
     # System Methods
     def get_current_time_date(self, command):
-        now = datetime.now()
-        return f"{now.strftime('%H:%M')} on {now.strftime('%B %d, %Y')}"
+        current_time = datetime.now()
+        time_str = current_time.strftime("%I:%M %p")
+        date_str = current_time.strftime("%A, %B %d, %Y")
+        
+        responses = [
+            f"It's {time_str} on {date_str}.",
+            f"The time is {time_str}, and today is {date_str}.",
+            f"Right now it's {time_str} on {date_str}."
+        ]
+        return random.choice(responses)
+
+    def control_music(self, command):
+        try:
+            if "play" in command:
+                if "study" in command:
+                    return self.music_controller.play_study_music()
+                elif "relax" in command:
+                    return self.music_controller.play_relaxing_music()
+                else:
+                    return self.music_controller.play_music()
+            elif "stop" in command or "pause" in command:
+                return self.music_controller.stop_music()
+            elif "next" in command:
+                return self.music_controller.next_track()
+            elif "previous" in command:
+                return self.music_controller.previous_track()
+            return "I'm not sure what you want me to do with the music. Try saying play, stop, next, or previous."
+        except Exception as e:
+            return f"I couldn't control the music: {str(e)}"
+
+    def open_application(self, command):
+        try:
+            app_name = next((name for name in self.app_map.keys() if name in command), None)
+            if app_name:
+                app = self.app_map[app_name]
+                subprocess.Popen(app)
+                return f"Opening {app_name}..."
+            return "I'm not sure which application you want to open."
+        except Exception as e:
+            return f"I couldn't open that application: {str(e)}"
     def register_custom_app(self, name, path):
         """Register a custom application or file path"""
         if os.path.exists(path):
@@ -238,6 +322,31 @@ class CommandHandler:
 
     def open_application(self, command):
         command = command.lower()
+        
+        # Handle web URLs first
+        if any(prefix in command for prefix in ['http://', 'https://', 'www.']):
+            url = command.replace('open', '').strip()
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
+            webbrowser.open(url)
+            return f"Opening {url}"
+
+        # Handle web shortcuts
+        web_shortcuts = {
+            'google': 'https://www.google.com',
+            'youtube': 'https://www.youtube.com',
+            'github': 'https://www.github.com',
+            'gmail': 'https://mail.google.com',
+            'maps': 'https://www.google.com/maps',
+            'drive': 'https://drive.google.com',
+            'calendar': 'https://calendar.google.com'
+        }
+
+        for shortcut, url in web_shortcuts.items():
+            if shortcut in command:
+                webbrowser.open(url)
+                return f"Opening {shortcut}"
+
         # First check custom apps
         for app_name, path in self.custom_apps.items():
             if app_name in command:

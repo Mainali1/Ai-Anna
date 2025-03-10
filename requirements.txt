@@ -21,3 +21,5 @@ librosa==0.10.1  # For audio processing
 webrtcvad==2.0.10  # For voice activity detection
 num2words==0.5.13  # For number to word conversion
 deepL==1.17.0  # For language translation
+gTTS==2.4.0  # For Google Text-to-Speech
+vosk==0.3.45  # For offline speech recognition

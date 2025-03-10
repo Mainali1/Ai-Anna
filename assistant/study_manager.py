@@ -3,16 +3,12 @@ import os
 from pygame import mixer
 from datetime import datetime, timedelta
 import nltk
-import sqlite3
-from datetime import datetime, timedelta
+from weakref import WeakValueDictionary
 
 class StudyManager:
-    def __init__(self):
-        # Use WeakValueDictionary for better memory management
-        self.cache = WeakValueDictionary()
     def __init__(self, db_handler):
         self.db = db_handler
-        self.setup_database()
+        self.cache = WeakValueDictionary()
         self.timer_active = False
         self.current_card = 0
         mixer.init()
@@ -70,12 +66,25 @@ class StudyManager:
             print(f"Couldn't play sound: {str(e)}")
 
     def create_flashcard(self, front, back):
-        return self.db.add_flashcard(front.strip(), back.strip())
+        """Create a new flashcard with caching"""
+        card_id = self.db.add_flashcard(front.strip(), back.strip())
+        self.cache[card_id] = {'front': front, 'back': back}
+        return card_id
 
     def get_due_cards(self):
-        return self.db.get_due_flashcards()
+        """Get due flashcards with caching"""
+        cards = self.db.get_due_flashcards()
+        for card in cards:
+            if card[0] not in self.cache:
+                self.cache[card[0]] = {'front': card[1], 'back': card[2]}
+        return cards
 
     def summarize_text(self, text, ratio=0.2):
-        from nltk.tokenize import sent_tokenize
-        sentences = sent_tokenize(text)
-        return ' '.join(sentences[:int(len(sentences)*ratio)])
+        """Summarize text using NLTK with error handling"""
+        try:
+            from nltk.tokenize import sent_tokenize
+            sentences = sent_tokenize(text)
+            return ' '.join(sentences[:int(len(sentences)*ratio)])
+        except Exception as e:
+            print(f"Text summarization error: {str(e)}")
+            return text

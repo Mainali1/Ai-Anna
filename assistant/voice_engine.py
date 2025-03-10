@@ -9,6 +9,11 @@ import platform
 import json
 import time
 from vosk import Model, KaldiRecognizer
+import requests
+from gtts import gTTS
+from io import BytesIO
+import pygame
+from .llm_handler import LLMHandler
 
 class VoiceEngine:
     def __init__(self, gui, command_handler, config):
@@ -18,6 +23,11 @@ class VoiceEngine:
         self.wake_word_detected = Event()
         self.listening_active = Event()
         self.is_processing = False
+        self.joke_api_url = "https://v2.jokeapi.dev/joke/Programming,Miscellaneous?safe-mode"
+        self.tts_engine = None
+        self.pygame_initialized = False
+        self.ai_mode = False
+        self.llm_handler = LLMHandler(config)
         
         # Initialize wake word detector
         self.porcupine = pvporcupine.create(
@@ -36,6 +46,86 @@ class VoiceEngine:
         
         # Initialize Vosk model for offline recognition
         self.vosk_model = Model(lang="en-us") if self.config['offline_mode'] else None
+        
+        # Initialize text-to-speech engine
+        self.init_tts_engine()
+
+    def init_tts_engine(self):
+        try:
+            # Try pyttsx3 first
+            self.engine = pyttsx3.init()
+            voices = self.engine.getProperty('voices')
+            female_voice = None
+            for voice in voices:
+                if 'female' in voice.name.lower():
+                    female_voice = voice
+                    break
+            
+            if female_voice:
+                self.engine.setProperty('voice', female_voice.id)
+                self.engine.setProperty('rate', self.config['speech_rate'])
+                self.engine.setProperty('volume', self.config['speech_volume'])
+                self.tts_engine = 'pyttsx3'
+            else:
+                # If no female voice found, use gTTS
+                self.tts_engine = 'gtts'
+                if not self.pygame_initialized:
+                    pygame.mixer.init()
+                    self.pygame_initialized = True
+        except Exception as e:
+            # Fallback to gTTS if pyttsx3 fails
+            self.tts_engine = 'gtts'
+            if not self.pygame_initialized:
+                pygame.mixer.init()
+                self.pygame_initialized = True
+            self.gui.show_error(f"Primary TTS initialization error: {str(e)}. Falling back to gTTS.")
+
+    def get_random_joke(self):
+        try:
+            response = requests.get(self.joke_api_url)
+            if response.status_code == 200:
+                joke_data = response.json()
+                if joke_data['type'] == 'single':
+                    return joke_data['joke']
+                else:
+                    return f"{joke_data['setup']}\n{joke_data['delivery']}"
+        except Exception:
+            return "Why did the AI assistant go to therapy? It had too many processing issues!"
+
+    def speak(self, text):
+        def _speak(txt):
+            try:
+                # Add personality to responses
+                if 'joke' in txt.lower():
+                    txt = self.get_random_joke()
+                elif any(greeting in txt.lower() for greeting in ['hello', 'hi', 'hey']):
+                    txt = f"{txt} I'm your AI assistant, how can I help you today?"
+                
+                if self.tts_engine == 'pyttsx3':
+                    if not hasattr(self, 'engine'):
+                        self.init_tts_engine()
+                    self.engine.say(txt)
+                    self.engine.runAndWait()
+                    self.engine.stop()
+                else:  # Use gTTS
+                    tts = gTTS(text=txt, lang='en', slow=False)
+                    fp = BytesIO()
+                    tts.write_to_fp(fp)
+                    fp.seek(0)
+                    if not self.pygame_initialized:
+                        pygame.mixer.init()
+                        self.pygame_initialized = True
+                    pygame.mixer.music.load(fp)
+                    pygame.mixer.music.play()
+                    while pygame.mixer.music.get_busy():
+                        pygame.time.Clock().tick(10)
+            except Exception as e:
+                self.gui.show_error(f"Speech error: {str(e)}")
+                # Reinitialize TTS engine on error
+                self.init_tts_engine()
+
+        if self.config['voice_response']:
+            Thread(target=_speak, args=(text,), daemon=True).start()
 
     def get_wake_word_path(self):
         path = os.path.join(os.path.dirname(__file__), 'resources', 'wake_word.ppn')
@@ -100,7 +190,25 @@ class VoiceEngine:
     def recognize_audio(self, audio):
         try:
             wav_data = audio.get_wav_data(convert_rate=16000)
-            return sr.Recognizer().recognize_google(audio)
+            command = sr.Recognizer().recognize_google(audio)
+            
+            # Check for AI mode commands
+            if command:
+                command = command.lower()
+                if 'ai mode on' in command:
+                    self.ai_mode = True
+                    self.speak("AI mode activated")
+                    return None
+                elif 'ai mode off' in command:
+                    self.ai_mode = False
+                    self.speak("AI mode deactivated")
+                    return None
+                elif self.ai_mode:
+                    response = self.llm_handler.generate_response(command)
+                    self.speak(response)
+                    return None
+            
+            return command
         except sr.UnknownValueError:
             self.gui.show_error("Could not understand audio")
         except sr.RequestError:
@@ -122,35 +230,11 @@ class VoiceEngine:
             self.gui.show_error(f"Offline recognition failed: {str(e)}")
             return None
 
-    def speak(self, text):
-        def _speak(txt):
-            try:
-                engine = pyttsx3.init()
-                voices = engine.getProperty('voices')
-                
-                # Try to find a female voice first
-                female_voice = None
-                for voice in voices:
-                    if 'female' in voice.name.lower():
-                        female_voice = voice
-                        break
-                
-                # Set voice - use female if found, otherwise use default
-                if female_voice:
-                    engine.setProperty('voice', female_voice.id)
-                
-                engine.setProperty('rate', self.config['speech_rate'])
-                engine.setProperty('volume', self.config['speech_volume'])
-                engine.say(txt)
-                engine.runAndWait()
-                engine.stop()
-            except Exception as e:
-                self.gui.show_error(f"Speech error: {str(e)}")
-
-        if self.config['voice_response']:
-            Thread(target=_speak, args=(text,), daemon=True).start()
-
     def cleanup(self):
         if self.porcupine:
             self.porcupine.delete()
+        if self.pygame_initialized:
+            pygame.mixer.quit()
+        if hasattr(self, 'llm_handler'):
+            self.llm_handler.cleanup()
         sd.stop()

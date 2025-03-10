@@ -1,0 +1,10 @@
+{
+    "assignment_reminder": {
+        "subject": "Assignment Reminder: {subject}",
+        "body": "Dear {name},\n\nThis is a reminder that your {subject} assignment is due on {due_date}.\n\nBest regards,\nAnna"
+    },
+    "study_summary": {
+        "subject": "Study Session Summary",
+        "body": "Dear {name},\n\nHere is your study session summary for {date}:\n\nTotal study time: {duration} minutes\nTopics covered: {topics}\n\nKeep up the good work!\n\nBest regards,\nAnna"
+    }
+}

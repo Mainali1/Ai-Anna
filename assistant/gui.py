@@ -1,83 +1,161 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from tkinter import ttk
 from ttkthemes import ThemedTk
-import os
+import threading
 
-class StudentAssistantGUI:
-    def __init__(self, master, config):
-        self.master = master
-        self.command_handler = None
+class AssistantGUI:
+    def __init__(self, root, config):
+        self.root = root
         self.config = config
+        self.command_handler = None  # Will be set after initialization
+        self.root.title("Anna AI Assistant")
+        self.root.geometry("400x600")
         
-        master.title("ANNA - AI Student Assistant")
-        master.geometry("1000x700")
-        master.configure(bg='#1a1a1a')
+        # Main frame
+        self.main_frame = ttk.Frame(self.root)
+        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        self.setup_theme()
-        self.create_layout()
-        self.setup_bindings()
+        # Status frame
+        self.status_frame = ttk.Frame(self.main_frame)
+        self.status_frame.pack(fill=tk.X, pady=(0, 10))
         
-        self.voice_resp_var = tk.BooleanVar(value=self.config['voice_response'])
-        self.beep_sound_var = tk.BooleanVar(value=self.config['beep_sound'])
-        self.sidebar_visible = True
+        # AI Mode indicator
+        self.ai_mode_var = tk.StringVar(value="AI Mode: OFF")
+        self.ai_mode_label = ttk.Label(
+            self.status_frame,
+            textvariable=self.ai_mode_var,
+            font=("Helvetica", 10)
+        )
+        self.ai_mode_label.pack(side=tk.LEFT)
+        
+        # Processing indicator
+        self.processing_label = ttk.Label(
+            self.status_frame,
+            text="",
+            font=("Helvetica", 10)
+        )
+        self.processing_label.pack(side=tk.RIGHT)
+        
+        # Response display
+        self.response_frame = ttk.Frame(self.main_frame)
+        self.response_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.response_text = tk.Text(
+            self.response_frame,
+            wrap=tk.WORD,
+            font=("Helvetica", 11),
+            state=tk.DISABLED
+        )
+        self.response_text.pack(fill=tk.BOTH, expand=True)
+        
+        # Scrollbar for response text
+        scrollbar = ttk.Scrollbar(self.response_frame, command=self.response_text.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.response_text.configure(yscrollcommand=scrollbar.set)
+        
+        # Input frame
+        self.input_frame = ttk.Frame(self.main_frame)
+        self.input_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(5, 0))
+        
+        # Input field
+        self.input_field = ttk.Entry(self.input_frame)
+        self.input_field.pack(fill=tk.X, side=tk.LEFT, expand=True)
+        self.input_field.bind('<Return>', self.process_input)
+        
+        # Send button
+        self.send_button = ttk.Button(
+            self.input_frame,
+            text="Send",
+            command=self.process_input
+        )
+        self.send_button.pack(side=tk.RIGHT, padx=(5, 0))
 
-    def setup_theme(self):
-        self.style = ttk.Style()
-        self.style.theme_use('black')
+        # Status bar
+        self.status_bar = ttk.Label(
+            self.main_frame,
+            text="Ready",
+            relief=tk.SUNKEN,
+            anchor=tk.W
+        )
+        self.status_bar.pack(fill=tk.X, side=tk.BOTTOM, pady=(5, 0))
         
-        # Modern button style
-        self.style.configure('Custom.TButton',
-                           font=('Segoe UI', 10),
-                           foreground='#ffffff',
-                           background='#2d2d2d',
-                           bordercolor='#3d3d3d',
-                           padding=5)
-        self.style.map('Custom.TButton',
-                      foreground=[('active', '#ffffff'), ('pressed', '#cccccc')],
-                      background=[('active', '#3d3d3d'), ('pressed', '#2d2d2d')])
-        
-        # Label styles
-        self.style.configure('Title.TLabel',
-                           font=('Segoe UI', 16, 'bold'),
-                           foreground='#ffffff',
-                           background='#1a1a1a')
-        self.style.configure('Subtitle.TLabel',
-                           font=('Segoe UI', 12),
-                           foreground='#cccccc',
-                           background='#1a1a1a')
-        
-        # Frame styles
-        self.style.configure('Sidebar.TFrame',
-                           background='#2d2d2d')
-        self.style.configure('Content.TFrame',
-                           background='#1a1a1a')
+        self.processing_animation = None
+        self.dots_count = 0
 
-    def create_layout(self):
-        # Main container
-        self.main_container = ttk.Frame(self.master, style='Content.TFrame')
-        self.main_container.pack(fill=tk.BOTH, expand=True)
+    def update_ui_state(self, is_listening):
+        if is_listening:
+            self.start_processing_animation("Listening")
+        else:
+            self.stop_processing_animation()
+            self.status_bar.config(text="Ready")
+    
+    def start_processing_animation(self, prefix="Processing"):
+        self.dots_count = (self.dots_count + 1) % 4
+        dots = "." * self.dots_count
+        self.processing_label.config(text=f"{prefix}{dots}")
+        self.processing_animation = self.root.after(500, lambda: self.start_processing_animation(prefix))
+    
+    def stop_processing_animation(self):
+        if self.processing_animation:
+            self.root.after_cancel(self.processing_animation)
+            self.processing_animation = None
+        self.processing_label.config(text="")
+    
+    def update_ai_mode(self, is_active):
+        self.ai_mode_var.set(f"AI Mode: {'ON' if is_active else 'OFF'}")
+        if is_active:
+            self.ai_mode_label.config(foreground="green")
+        else:
+            self.ai_mode_label.config(foreground="red")
+    
+    def show_response(self, text):
+        self.response_text.config(state=tk.NORMAL)
+        self.response_text.insert(tk.END, f"{text}\n\n")
+        self.response_text.see(tk.END)
+        self.response_text.config(state=tk.DISABLED)
+    
+    def show_error(self, error_message):
+        self.status_bar.config(text=f"Error: {error_message}")
+        self.root.after(3000, lambda: self.status_bar.config(text="Ready"))
+    
+    def run(self):
+        self.root.mainloop()
+
+    def process_input(self, event=None):
+        if not self.command_handler:
+            self.show_error("Command handler not initialized")
+            return
+            
+        text = self.input_field.get().strip()
+        if not text:
+            return
+            
+        self.input_field.delete(0, tk.END)
+        self.start_processing_animation()
         
-        # Collapsible sidebar
-        self.sidebar = ttk.Frame(self.main_container, style='Sidebar.TFrame', width=250)
-        self.sidebar.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
-        self.sidebar.pack_propagate(False)
-        
-        # Toggle sidebar button
-        self.toggle_btn = ttk.Button(self.sidebar,
-                                   text='≡',
-                                   style='Custom.TButton',
-                                   command=self.toggle_sidebar)
-        self.toggle_btn.pack(anchor='ne', padx=5, pady=5)
-        
-        # Create sidebar content
-        self.create_sidebar_content()
-        
-        # Main content area
-        self.content = ttk.Frame(self.main_container, style='Content.TFrame')
-        self.content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=2, pady=2)
-        
-        # Create main content
-        self.create_main_content()
+        # Process command in a separate thread to avoid UI freezing
+        threading.Thread(
+            target=self._process_command_thread,
+            args=(text,),
+            daemon=True
+        ).start()
+    
+    def _process_command_thread(self, text):
+        try:
+            response = self.command_handler.process_command(text)
+            self.root.after(0, self.display_response, response)
+        except Exception as e:
+            self.root.after(0, self.show_error, str(e))
+        finally:
+            self.root.after(0, self.stop_processing_animation)
+    
+    def display_response(self, response):
+        """Display the response in the UI"""
+        if response:
+            self.show_response(response)
+            self.status_bar.config(text="Ready")
+
+
 
     def create_sidebar_content(self):
         # Settings section

@@ -26,6 +26,19 @@ class DatabaseHandler:
         finally:
             conn.close()
 
+    def execute(self, query, params=None):
+        """Execute a SQL query with optional parameters"""
+        with self._get_cursor() as cursor:
+            try:
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+                return cursor.fetchall()
+            except Exception as e:
+                logging.error(f"Query execution error: {str(e)}")
+                raise
+
     def _initialize_database(self):
         """Create tables and indexes if they don't exist"""
         with self._get_cursor() as c:

@@ -1,4 +1,4 @@
-from assistant.gui import StudentAssistantGUI
+from assistant.gui import AssistantGUI
 from assistant.voice_engine import VoiceEngine
 from assistant.command_handler import CommandHandler
 from assistant.study_manager import StudyManager
@@ -21,7 +21,7 @@ def main():
     email_manager = EmailManager()
     
     # Initialize GUI first
-    gui = StudentAssistantGUI(root, config)  # Do NOT pass command_handler here
+    gui = AssistantGUI(root, config)  # Do NOT pass command_handler here
     
     # Initialize VoiceEngine and CommandHandler AFTER GUI
     voice_engine = VoiceEngine(gui, None, config)
