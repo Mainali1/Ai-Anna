@@ -5,6 +5,10 @@ import sys
 import wikipedia
 from datetime import datetime
 from urllib.parse import quote
+from .weather_service import WeatherService
+from .system_controller import SystemController
+
+import random
 
 class CommandHandler:
     def __init__(self, gui, voice_engine, study_manager, music_controller, email_manager, config, spaced_repetition):
@@ -79,7 +83,6 @@ class CommandHandler:
         }
 
     def update_mood(self, command):
-        import random
         current_mood = self.conversation_context['mood']
         
         # Update mood based on command content and context
@@ -101,7 +104,6 @@ class CommandHandler:
         return self.mood_responses.get(new_mood, [])[0] if self.mood_responses.get(new_mood) else ""
 
     def get_contextual_response(self, command_type, command=""):
-        import random
         response = random.choice(self.casual_acknowledgments) + " "
         
         # Add mood-based response
@@ -308,7 +310,10 @@ class CommandHandler:
             app_name = next((name for name in self.app_map.keys() if name in command), None)
             if app_name:
                 app = self.app_map[app_name]
-                subprocess.Popen(app)
+                if os.path.exists(app):
+                    subprocess.Popen([app], shell=True)
+                else:
+                    subprocess.Popen(app, shell=True)
                 return f"Opening {app_name}..."
             return "I'm not sure which application you want to open."
         except Exception as e:

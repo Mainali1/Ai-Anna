@@ -10,37 +10,51 @@ from assistant.spaced_repetition import SpacedRepetitionSystem
 from ttkthemes import ThemedTk
 
 def main():
-    root = ThemedTk(theme="black")
-    config = ConfigManager()
-    
-    # Initialize core components
-    db_handler = DatabaseHandler()
-    spaced_repetition = SpacedRepetitionSystem(db_handler)
-    study_manager = StudyManager(db_handler)
-    music_controller = MusicController()
-    email_manager = EmailManager()
-    
-    # Initialize GUI first
-    gui = AssistantGUI(root, config)  # Do NOT pass command_handler here
-    
-    # Initialize VoiceEngine and CommandHandler AFTER GUI
-    voice_engine = VoiceEngine(gui, None, config)
-    command_handler = CommandHandler(
-        gui=gui,
-        voice_engine=voice_engine,
-        study_manager=study_manager,
-        music_controller=music_controller,
-        email_manager=email_manager,
-        config=config,
-        spaced_repetition=spaced_repetition
-    )
-    
-    # Connect components PROPERLY
-    gui.command_handler = command_handler  # Fixes text input
-    voice_engine.command_handler = command_handler  # Fixes voice commands
-    music_controller.config = config
-    
-    root.mainloop()
+    try:
+        # Initialize root window and config
+        root = ThemedTk(theme="black")
+        config = ConfigManager()
+        
+        # Initialize core components with error handling
+        try:
+            db_handler = DatabaseHandler()
+            spaced_repetition = SpacedRepetitionSystem(db_handler)
+            study_manager = StudyManager(db_handler)
+            music_controller = MusicController()
+            email_manager = EmailManager()
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize core components: {str(e)}")
+        
+        # Initialize GUI first
+        try:
+            gui = AssistantGUI(root, config)
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize GUI: {str(e)}")
+        
+        # Initialize VoiceEngine and CommandHandler AFTER GUI
+        try:
+            voice_engine = VoiceEngine(gui, None, config)
+            command_handler = CommandHandler(
+                gui=gui,
+                voice_engine=voice_engine,
+                study_manager=study_manager,
+                music_controller=music_controller,
+                email_manager=email_manager,
+                config=config,
+                spaced_repetition=spaced_repetition
+            )
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize voice engine or command handler: {str(e)}")
+        
+        # Connect components PROPERLY
+        gui.command_handler = command_handler  # Fixes text input
+        voice_engine.command_handler = command_handler  # Fixes voice commands
+        music_controller.config = config
+        
+        root.mainloop()
+    except Exception as e:
+        print(f"Critical error during initialization: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     main()

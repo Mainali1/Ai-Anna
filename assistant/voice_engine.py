@@ -17,6 +17,9 @@ from .llm_handler import LLMHandler
 
 class VoiceEngine:
     def __init__(self, gui, command_handler, config):
+        if not gui or not config:
+            raise ValueError("GUI and config must be provided")
+            
         self.gui = gui
         self.command_handler = command_handler
         self.config = config
@@ -27,28 +30,58 @@ class VoiceEngine:
         self.tts_engine = None
         self.pygame_initialized = False
         self.ai_mode = False
-        self.llm_handler = LLMHandler(config)
+        self.llm_handler = None
         
-        # Initialize wake word detector
-        self.porcupine = pvporcupine.create(
-            access_key=os.getenv('PICOVOICE_ACCESS_KEY'),
-            sensitivities=[self.config['wake_word_sensitivity']],
-            keyword_paths=[self.get_wake_word_path()]
-        )
-        
-        # Audio configuration
+        try:
+            # Initialize components in order
+            self.init_llm_handler()
+            self.init_wake_word_detector()
+            self.init_audio_config()
+            self.init_vosk_model()
+            self.init_tts_engine()
+            self.start_wake_word_thread()
+        except Exception as e:
+            self.gui.show_error(f"Initialization error: {str(e)}")
+            raise
+
+    def init_llm_handler(self):
+        try:
+            self.llm_handler = LLMHandler(self.config)
+        except Exception as e:
+            self.gui.show_error(f"LLM initialization error: {str(e)}")
+            raise
+
+    def init_wake_word_detector(self):
+        try:
+            access_key = os.getenv('PICOVOICE_ACCESS_KEY')
+            if not access_key:
+                raise ValueError("PICOVOICE_ACCESS_KEY not found in environment variables")
+                
+            self.porcupine = pvporcupine.create(
+                access_key=access_key,
+                sensitivities=[self.config.get('wake_word_sensitivity', 0.5)],
+                keyword_paths=[self.get_wake_word_path()]
+            )
+        except Exception as e:
+            self.gui.show_error(f"Wake word detector initialization error: {str(e)}")
+            raise
+
+    def init_audio_config(self):
+        if not hasattr(self, 'porcupine'):
+            raise RuntimeError("Wake word detector must be initialized before audio config")
         self.sample_rate = self.porcupine.sample_rate
         self.frame_length = self.porcupine.frame_length
-        
-        # Start wake word detection thread
+
+    def init_vosk_model(self):
+        try:
+            self.vosk_model = Model(lang="en-us") if self.config.get('offline_mode', False) else None
+        except Exception as e:
+            self.gui.show_error(f"Vosk model initialization error: {str(e)}")
+            # Don't raise here as Vosk is optional
+
+    def start_wake_word_thread(self):
         self.wake_word_thread = Thread(target=self.detect_wake_word, daemon=True)
         self.wake_word_thread.start()
-        
-        # Initialize Vosk model for offline recognition
-        self.vosk_model = Model(lang="en-us") if self.config['offline_mode'] else None
-        
-        # Initialize text-to-speech engine
-        self.init_tts_engine()
 
     def init_tts_engine(self):
         try:
