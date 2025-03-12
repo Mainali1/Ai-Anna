@@ -5,6 +5,7 @@ ttkthemes==3.2.2  # For theme support
 pvporcupine==3.0.5  # For voice commands
 PyAudio==0.2.14  # For recording audio
 pynput==1.7.6  # For keyboard and mouse control
+psutil==7.0.0  # For system monitoring
 pandas==1.5.3  # For data analysis
 nltk==3.9.1  # For natural language processing tasks
 pygame==2.5.0  # For sound notifications

@@ -7,6 +7,8 @@ from assistant.music_controller import MusicController
 from assistant.email_manager import EmailManager
 from assistant.config_manager import ConfigManager
 from assistant.spaced_repetition import SpacedRepetitionSystem
+from assistant.ai_service_handler import AIServiceHandler
+from assistant.file_system_handler import FileSystemHandler
 from ttkthemes import ThemedTk
 
 def main():
@@ -22,6 +24,8 @@ def main():
             study_manager = StudyManager(db_handler)
             music_controller = MusicController()
             email_manager = EmailManager()
+            ai_service = AIServiceHandler(config.config)
+            file_system = FileSystemHandler()
         except Exception as e:
             raise RuntimeError(f"Failed to initialize core components: {str(e)}")
         
@@ -41,7 +45,9 @@ def main():
                 music_controller=music_controller,
                 email_manager=email_manager,
                 config=config,
-                spaced_repetition=spaced_repetition
+                spaced_repetition=spaced_repetition,
+                ai_service=ai_service,
+                file_system=file_system
             )
         except Exception as e:
             raise RuntimeError(f"Failed to initialize voice engine or command handler: {str(e)}")

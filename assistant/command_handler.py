@@ -11,7 +11,9 @@ from .system_controller import SystemController
 import random
 
 class CommandHandler:
-    def __init__(self, gui, voice_engine, study_manager, music_controller, email_manager, config, spaced_repetition):
+    def __init__(self, gui, voice_engine, study_manager, music_controller, email_manager, config, spaced_repetition, ai_service, file_system):
+        self.ai_service = ai_service
+        self.file_system = file_system
         self.gui = gui
         self.voice_engine = voice_engine
         self.study_manager = study_manager

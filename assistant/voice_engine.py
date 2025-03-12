@@ -13,7 +13,7 @@ import requests
 from gtts import gTTS
 from io import BytesIO
 import pygame
-from .llm_handler import LLMHandler
+from .ai_service_handler import AIServiceHandler
 
 class VoiceEngine:
     def __init__(self, gui, command_handler, config):
@@ -30,11 +30,11 @@ class VoiceEngine:
         self.tts_engine = None
         self.pygame_initialized = False
         self.ai_mode = False
-        self.llm_handler = None
+        self.ai_service = None
         
         try:
             # Initialize components in order
-            self.init_llm_handler()
+            self.init_ai_service()
             self.init_wake_word_detector()
             self.init_audio_config()
             self.init_vosk_model()
@@ -44,11 +44,11 @@ class VoiceEngine:
             self.gui.show_error(f"Initialization error: {str(e)}")
             raise
 
-    def init_llm_handler(self):
+    def init_ai_service(self):
         try:
-            self.llm_handler = LLMHandler(self.config)
+            self.ai_service = AIServiceHandler(self.config)
         except Exception as e:
-            self.gui.show_error(f"LLM initialization error: {str(e)}")
+            self.gui.show_error(f"AI service initialization error: {str(e)}")
             raise
 
     def init_wake_word_detector(self):
@@ -237,7 +237,7 @@ class VoiceEngine:
                     self.speak("AI mode deactivated")
                     return None
                 elif self.ai_mode:
-                    response = self.llm_handler.generate_response(command)
+                    response = self.ai_service.generate_response(command)
                     self.speak(response)
                     return None
             

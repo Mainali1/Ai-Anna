@@ -13,24 +13,25 @@
 - **Wake Phrase**: "Anna ready" (customizable in config)
 - **Hybrid Recognition**: Google Speech (online) + Vosk (offline)
 - **Low-Latency Audio**: SoundDevice backend for responsive interaction
+- **AI Mode**: Enhanced conversational capabilities
 
 ### 📚 **Core Academic Features**
-- **Smart Pomodoro Timer**: `"Start 25 minute study timer"`
-- **Assignment Tracker**: `"Add math assignment due 2023-12-01"`
-- **Flashcard System**: `"Create flashcard: Mitochondria: Powerhouse of cell"`
-- **Class Schedule**: `"What's my schedule today?"`
-- **Quick Research**: `"Wikipedia artificial intelligence"`
+- **Smart Pomodoro Timer**: `"Start 25 minute study timer"` with work/break sessions
+- **Flashcard System**: `"Create flashcard: [front]: [back]"` with spaced repetition
+- **Text Summarization**: NLTK-based text summarization capabilities
+- **Quick Research**: `"Wikipedia [topic]"` for instant information
 
 ### 🌟 **Enhanced Features**
-- **Weather Updates**: `"What's the weather like today?"`
-- **Mood Detection**: AI-powered emotion recognition
-- **Spaced Repetition**: Optimized learning intervals
-- **Email Integration**: `"Check my emails"`
+- **Weather Updates**: Real-time weather information via WeatherService
+- **Mood Detection**: Context-aware responses with dynamic mood transitions
+- **File System Integration**: Organized file management and access
+- **Email Integration**: Email management capabilities
 
 ### 🖥️ **System Integration**
-- **App Launcher**: `"Open browser/text editor/music player"`
-- **File Access**: `"Open file D:/notes.txt"`
-- **Music Control**: `"Play/Pause music"`
+- **App Launcher**: Extensive application control (Chrome, Discord, VS Code, etc.)
+- **File Access**: Direct file system operations
+- **Music Control**: Audio playback management
+- **System Control**: Advanced system operations management
 
 ---
 
@@ -76,10 +77,9 @@ Edit `config.json` to customize:
   "wake_phrase": "Anna ready",
   "voice_response": true,
   "speech_rate": 150,
-  "music_path": "~/Music",
+  "wake_word_sensitivity": 0.5,
   "offline_mode": false,
-  "weather_update_interval": 3600,
-  "mood_detection_enabled": true
+  "speech_volume": 1.0
 }
 ```
 
@@ -90,17 +90,17 @@ Edit `config.json` to customize:
 ### Study Management
 | Command Pattern | Example |
 |-----------------|----------|
-| "Start [X] minute timer" | "Start 45 minute timer" |
-| "Add assignment [task] due [date]" | "Add essay due Friday" |
+| "Start [X] minute timer" | "Start 25 minute timer" |
 | "Create flashcard [front]: [back]" | "Create flashcard CPU: Central Processing Unit" |
+| "Summarize text" | Generates text summary using NLTK |
 
 ### System Control
 | Command Pattern | Action |
 |-----------------|--------|
-| "Open [application]" | Launches specified app |
+| "Open [application]" | Launches specified app (VS Code, Discord, etc.) |
 | "What time is it?" | Current time/date |
-| "Search web for [query]" | DuckDuckGo search |
-| "Weather in [location]" | Get weather updates |
+| "Search web for [query]" | Web search functionality |
+| "Weather update" | Get weather information |
 
 ### Utilities
 | Command | Function |
@@ -120,26 +120,29 @@ graph TD
     B <--> C[Study Manager]
     B <--> D[Voice Engine]
     B <--> E[Email Manager]
-    B <--> H[Weather Service]
-    B <--> I[Mood Detector]
-    C <--> F[Database]
-    D <--> G[Picovoice]
+    B <--> F[System Controller]
+    B <--> G[AI Service Handler]
+    B <--> H[File System Handler]
+    B <--> I[Music Controller]
+    C <--> J[Database]
+    D <--> K[Picovoice]
 ```
 
 ### Key Technologies
 - **Wake Word**: Picovoice Porcupine
 - **Speech Recognition**: Google Web Speech API + Vosk
-- **Text-to-Speech**: pyttsx3
+- **Text-to-Speech**: pyttsx3 with gTTS fallback
 - **Database**: SQLite with spaced repetition
 - **UI**: Tkinter + ttkthemes
-- **Weather API**: OpenWeatherMap integration
-- **Mood Analysis**: Advanced NLP processing
+- **Audio**: SoundDevice and Pygame mixer
+- **NLP**: NLTK for text processing
 
 ---
 
 ## Performance Optimization 🚀
-- Reduced CPU usage to <5% idle
-- Threaded audio processing
+- Efficient audio processing with SoundDevice
+- Threaded wake word detection
+- Caching system for flashcards
 - Configurable wake word sensitivity
 - Automatic NLTK resource management
 
@@ -154,19 +157,22 @@ Ai-Anna/
 ├── main.py
 ├── assistant/
 │   ├── __init__.py
+│   ├── ai_service_handler.py
 │   ├── command_handler.py
 │   ├── config_manager.py
 │   ├── database.py
 │   ├── email_manager.py
+│   ├── file_system_handler.py
 │   ├── gui.py
-│   ├── music_controller.py
 │   ├── mood_detector.py
-│   ├── weather_service.py
+│   ├── music_controller.py
 │   ├── spaced_repetition.py
 │   ├── study_manager.py
+│   ├── system_controller.py
 │   ├── voice_engine.py
+│   ├── weather_service.py
 │   └── resources/
-│       └── wake_word.ppn
+│       └── email_templates.json
 │
 ├── requirements.txt
 ├── README.md
@@ -176,7 +182,7 @@ Ai-Anna/
 ├── config.json
 ├── .env
 ├── .gitignore
-└── assignments.db
+└── bell.wav
 ```
 
 ### **Contribute**
@@ -217,9 +223,9 @@ See the [LICENSE](LICENSE) file for full details.
 
 - **Speech Recognition**: Powered by [SpeechRecognition](https://github.com/Uberi/speech_recognition)
 - **Wake Word Detection**: Enabled by [Picovoice](https://picovoice.ai/)
-- **NLP Capabilities**: Provided by [spaCy](https://spacy.io/) and [NLTK](https://www.nltk.org/)
+- **NLP Capabilities**: Provided by [NLTK](https://www.nltk.org/)
 - **UI Design**: Enhanced with [ttkthemes](https://github.com/RedFantom/ttkthemes)
-- **Weather Data**: Powered by OpenWeatherMap API
+- **Audio Processing**: [SoundDevice](https://python-sounddevice.readthedocs.io/) and [Pygame](https://www.pygame.org/)
 
 ---
 
