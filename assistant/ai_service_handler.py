@@ -133,8 +133,65 @@ class AIServiceHandler:
 
     def _process_cloud(self, text: str, task_type: str, service_config: Dict) -> Dict[str, Any]:
         """Process text using a cloud AI service"""
-        # Implementation for cloud service processing
-        pass
+        if not self.config.get('ai_service'):
+            return {'error': 'AI service configuration missing'}
+
+        ai_config = self.config['ai_service']
+        provider = service_config.get('name', ai_config.get('preferred_provider'))
+
+        if provider == 'openai':
+            return self._process_openai(text, task_type, ai_config['openai'])
+        elif provider == 'huggingface':
+            return self._process_huggingface(text, task_type, ai_config['huggingface'])
+        else:
+            return {'error': f'Unsupported cloud provider: {provider}'}
+
+    def _process_openai(self, text: str, task_type: str, config: Dict) -> Dict[str, Any]:
+        """Process text using OpenAI API"""
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            return {'error': 'OpenAI API key not configured in environment'}
+
+        try:
+            import openai
+            openai.api_key = api_key
+
+            response = openai.ChatCompletion.create(
+                model=config.get('model', 'gpt-3.5-turbo'),
+                messages=[
+                    {"role": "system", "content": f"You are an AI assistant helping with {task_type}"},
+                    {"role": "user", "content": text}
+                ],
+                temperature=0.7
+            )
+
+            return {
+                'response': response.choices[0].message['content'],
+                'provider': 'openai'
+            }
+        except Exception as e:
+            return {'error': f'OpenAI processing failed: {str(e)}'}
+
+    def _process_huggingface(self, text: str, task_type: str, config: Dict) -> Dict[str, Any]:
+        """Process text using HuggingFace API"""
+        api_key = os.getenv('HUGGINGFACE_API_KEY')
+        if not api_key:
+            return {'error': 'HuggingFace API key not configured in environment'}
+
+        try:
+            import requests
+            headers = {"Authorization": f"Bearer {api_key}"}
+            api_url = f"https://api-inference.huggingface.co/models/{config.get('model', 'gpt2')}"
+
+            response = requests.post(api_url, headers=headers, json={"inputs": text})
+            response.raise_for_status()
+
+            return {
+                'response': response.json()[0]['generated_text'],
+                'provider': 'huggingface'
+            }
+        except Exception as e:
+            return {'error': f'HuggingFace processing failed: {str(e)}'}
 
     def _handle_service_failure(self, failed_service: str):
         """Handle service failure by switching to another available service"""

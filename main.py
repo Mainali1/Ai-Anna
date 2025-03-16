@@ -37,10 +37,9 @@ def main():
         
         # Initialize VoiceEngine and CommandHandler AFTER GUI
         try:
-            voice_engine = VoiceEngine(gui, None, config)
             command_handler = CommandHandler(
                 gui=gui,
-                voice_engine=voice_engine,
+                voice_engine=None,  # Will be set after initialization
                 study_manager=study_manager,
                 music_controller=music_controller,
                 email_manager=email_manager,
@@ -49,6 +48,8 @@ def main():
                 ai_service=ai_service,
                 file_system=file_system
             )
+            voice_engine = VoiceEngine(gui, command_handler, config)
+            command_handler.voice_engine = voice_engine  # Set voice engine after initialization
         except Exception as e:
             raise RuntimeError(f"Failed to initialize voice engine or command handler: {str(e)}")
         

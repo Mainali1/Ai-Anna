@@ -24,6 +24,9 @@ class CommandHandler:
         self.weather_service = WeatherService()
         self.system_controller = SystemController()
         self.is_listening = False
+        self.ai_mode = False
+        
+        # Initialize app_map in __init__
         self.app_map = {
             'music player': 'spotify',
             'email client': 'thunderbird',

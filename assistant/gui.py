@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 from ttkthemes import ThemedTk
 import threading
+import math
 
 class AssistantGUI:
     def __init__(self, root, config):
@@ -36,8 +37,12 @@ class AssistantGUI:
         self.create_sidebar_content()
         self.create_main_content()
         
-        self.processing_animation = None
-        self.dots_count = 0
+        # Create Siri-like animation canvas
+        self.animation_canvas = tk.Canvas(self.main_frame, width=60, height=60, bg=self.root['bg'], highlightthickness=0)
+        self.animation_canvas.pack(side=tk.BOTTOM, pady=5)
+        self.animation_points = []
+        self.animation_angle = 0
+        self.is_animating = False
         
         # Create status bar and processing label
         self.status_bar = ttk.Label(self.root, text="Ready", relief=tk.SUNKEN, anchor=tk.W)
@@ -46,25 +51,83 @@ class AssistantGUI:
         self.processing_label = ttk.Label(self.main_frame, text="")
         self.processing_label.pack(side=tk.BOTTOM, pady=5)
         
-        # Create response text area
-        self.response_text = tk.Text(self.main_frame, wrap=tk.WORD, height=10)
+        # Create response text area with proper colors
+        self.response_text = tk.Text(self.main_frame, wrap=tk.WORD, height=10, bg='white', fg='black')
         self.response_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.response_text.config(state=tk.DISABLED)
         
-        # Create input field
-        self.input_field = ttk.Entry(self.main_frame)
+        # Create input field with proper colors
+        self.input_field = ttk.Entry(self.main_frame, style='Custom.TEntry')
         self.input_field.pack(fill=tk.X, padx=5, pady=5)
         self.input_field.bind('<Return>', self.process_input)
         
-        # Create AI mode label
-        self.ai_mode_label = ttk.Label(self.main_frame, textvariable=self.ai_mode_var)
-        self.ai_mode_label.pack(side=tk.BOTTOM, pady=5)
+        # Create custom style for input field with proper colors
+        style = ttk.Style()
+        style.configure('Custom.TEntry',
+                        fieldbackground='white',
+                        foreground='black')
+        style.map('Custom.TEntry',
+                  fieldbackground=[('readonly', 'white')],
+                  foreground=[('readonly', 'black')])
+        
+        # Create Siri-like animation canvas with white background
+        self.animation_canvas = tk.Canvas(self.main_frame, width=60, height=60, bg='white', highlightthickness=0)
+        self.animation_canvas.pack(side=tk.BOTTOM, pady=5)
+        self.animation_points = []
+        self.animation_angle = 0
+        self.is_animating = False
+        self.update_siri_animation()
+        
+    def draw_ai_mode_icon(self, is_active):
+        self.ai_mode_icon.delete('all')
+        color = 'green' if is_active else 'red'
+        self.ai_mode_icon.create_oval(2, 2, 14, 14, fill=color, outline=color)
+        
+    def update_siri_animation(self):
+        if not self.is_animating:
+            return
+            
+        self.animation_canvas.delete('all')
+        center_x = 30
+        center_y = 30
+        radius = 20
+        num_points = 12
+        
+        for i in range(num_points):
+            angle = self.animation_angle + (i * (360 / num_points))
+            x = center_x + radius * math.cos(math.radians(angle))
+            y = center_y + radius * math.sin(math.radians(angle))
+            size = 3 + 2 * math.sin(math.radians(angle - self.animation_angle))
+            color = f'#{int(128 + 127 * math.sin(math.radians(angle - self.animation_angle))):02x}0000'
+            self.animation_canvas.create_oval(x-size, y-size, x+size, y+size, fill=color, outline=color)
+        
+        self.animation_angle = (self.animation_angle + 5) % 360
+        self.animation_canvas.after(50, self.update_siri_animation)
+        
+    def start_siri_animation(self):
+        self.is_animating = True
+        self.update_siri_animation()
+        
+    def stop_siri_animation(self):
+        self.is_animating = False
+        self.animation_canvas.delete('all')
+        
     def update_ui_state(self, is_listening):
         if is_listening:
+            self.start_siri_animation()
             self.start_processing_animation("Listening")
         else:
+            self.stop_siri_animation()
             self.stop_processing_animation()
             self.status_bar.config(text="Ready")
+    
+    def update_ai_mode(self, is_active):
+        self.ai_mode_var.set(f"AI Mode: {'ON' if is_active else 'OFF'}")
+        self.draw_ai_mode_icon(is_active)
+        if is_active:
+            self.ai_mode_label.config(foreground="green")
+        else:
+            self.ai_mode_label.config(foreground="red")
     
     def start_processing_animation(self, prefix="Processing"):
         self.dots_count = (self.dots_count + 1) % 4
@@ -150,6 +213,31 @@ class AssistantGUI:
                                    variable=self.beep_sound_var,
                                    command=self.update_settings)
         beep_check.pack(fill=tk.X, padx=2, pady=2)
+
+        # Time and Date section
+        time_frame = ttk.LabelFrame(self.sidebar, text='Time & Date', style='Custom.TLabelframe')
+        time_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Button(time_frame, text='Current Time',
+                   command=lambda: self.command_handler.process_command("what time is it")).pack(fill=tk.X, padx=2, pady=2)
+        ttk.Button(time_frame, text='Current Date',
+                   command=lambda: self.command_handler.process_command("what's the date")).pack(fill=tk.X, padx=2, pady=2)
+
+        # Weather section
+        weather_frame = ttk.LabelFrame(self.sidebar, text='Weather', style='Custom.TLabelframe')
+        weather_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Button(weather_frame, text='Weather Update',
+                   command=lambda: self.command_handler.process_command("weather update")).pack(fill=tk.X, padx=2, pady=2)
+
+        # Music section
+        music_frame = ttk.LabelFrame(self.sidebar, text='Music Controls', style='Custom.TLabelframe')
+        music_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Button(music_frame, text='Play Music',
+                   command=lambda: self.command_handler.process_command("play music")).pack(fill=tk.X, padx=2, pady=2)
+        ttk.Button(music_frame, text='Stop Music',
+                   command=lambda: self.command_handler.process_command("stop music")).pack(fill=tk.X, padx=2, pady=2)
 
         # Study tools section
         tools_frame = ttk.LabelFrame(self.sidebar, text='Study Tools', style='Custom.TLabelframe')
@@ -262,7 +350,7 @@ class AssistantGUI:
         self.text_input = ttk.Entry(input_frame,
                                    font=('Segoe UI', 11),
                                    background='#2d2d2d',
-                                   foreground='#ffffff')
+                                   foreground='#000000')
         self.text_input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=2)
         
         ttk.Button(input_frame,

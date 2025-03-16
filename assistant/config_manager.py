@@ -1,9 +1,13 @@
 import json
 import os
+from dotenv import load_dotenv
 
 class ConfigManager:
     def __init__(self):
         self.config_file = 'config.json'
+        # Load environment variables from .env file
+        load_dotenv()
+        
         self.default_config = {
             'offline_mode': False,
             'voice_response': True,

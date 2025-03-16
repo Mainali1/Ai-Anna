@@ -7,5 +7,15 @@
   "speech_rate": 150,
   "voice_gender": "female",
   "speech_volume": 0.9,
-  "wake_word_sensitivity": 0.7
+  "wake_word_sensitivity": 0.7,
+  "ai_service": {
+    "preferred_provider": "huggingface",
+    "openai": {
+      "model": "gpt-3.5-turbo"
+    },
+    "huggingface": {
+      "model": "gpt2"
+    },
+    "command_flexibility": "high"
+  }
 }
