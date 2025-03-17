@@ -1,17 +1,18 @@
-import webbrowser
+import logging
 import os
-import subprocess
-import sys
-import wikipedia
 from datetime import datetime
-from urllib.parse import quote
+from typing import Dict, Any, Optional
+from .commands import CommandRegistry
+from .commands.music_command import MusicCommand
+from .commands.weather_command import WeatherCommand
 from .weather_service import WeatherService
 from .system_controller import SystemController
-
-import random
+from .conversation_storage import ConversationStorage
+from .screen_analyzer import ScreenAnalyzer
 
 class CommandHandler:
-    def __init__(self, gui, voice_engine, study_manager, music_controller, email_manager, config, spaced_repetition, ai_service, file_system):
+    def __init__(self, gui, voice_engine, study_manager, music_controller, email_manager, config, spaced_repetition, ai_service, file_system, external_services):
+        self.external_services = external_services
         self.ai_service = ai_service
         self.file_system = file_system
         self.gui = gui
@@ -23,10 +24,29 @@ class CommandHandler:
         self.spaced_repetition = spaced_repetition
         self.weather_service = WeatherService()
         self.system_controller = SystemController()
+        self.screen_analyzer = ScreenAnalyzer(config)
+        self.conversation_storage = ConversationStorage()
         self.is_listening = False
         self.ai_mode = False
         
-        # Initialize app_map in __init__
+        # Initialize command registry
+        self.command_registry = CommandRegistry()
+        self._register_commands()
+        
+        # Initialize conversation context
+        self.conversation_context = {
+            'last_topic': None,
+            'follow_up_needed': False,
+            'user_name': None,
+            'mood': 'neutral'
+        }
+        
+        # Initialize last command time
+        self.last_command_time = None
+        
+        # Setup logging
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
         self.app_map = {
             'music player': 'spotify',
             'email client': 'thunderbird',
@@ -108,97 +128,236 @@ class CommandHandler:
         self.conversation_context['mood'] = new_mood
         return self.mood_responses.get(new_mood, [])[0] if self.mood_responses.get(new_mood) else ""
 
+    def _register_commands(self):
+        """Register all available commands"""
+        self.command_registry.register('music', MusicCommand)
+        self.command_registry.register('weather', WeatherCommand)
+        self.command_registry.register('time', WeatherCommand)  # Temporarily handle time queries
+        # Remove WeatherCommand as default fallback for conversation
+    
+    def determine_intent(self, command: str) -> str:
+        """Determine the intent of the command"""
+        command = command.lower()
+        
+        # Check each registered command's validation
+        for intent, command_class in self.command_registry.get_all_commands().items():
+            command_instance = command_class(self)
+            if command_instance.validate(command):
+                return intent
+        
+        # Default to conversation if no specific intent is found
+        return 'conversation'
+
     def get_contextual_response(self, command_type, command=""):
-        response = random.choice(self.casual_acknowledgments) + " "
+        response = ""
+        intent = self.determine_intent(command)
+        
+        # Update conversation context
+        self.conversation_context['last_topic'] = intent
         
         # Add mood-based response
         mood_response = self.update_mood(command)
         if mood_response:
-            response = mood_response + " " + response
+            response = mood_response + " "
         
-        if command_type == 'study':
-            if self.conversation_context['last_topic'] == 'study':
-                response += "Still focusing on your studies? That's great! "
+        # Add contextual acknowledgment
+        if intent == self.conversation_context.get('last_topic'):
+            response += "I see you're still interested in " + intent + ". "
+        else:
+            response += random.choice(self.casual_acknowledgments) + " "
+        
+        # Add follow-up suggestions based on intent
+        if intent == 'study':
             self.conversation_context['follow_up_needed'] = True
-        
-        elif command_type == 'timer':
-            if command and 'stress' in command.lower():
-                response += random.choice(self.empathy_responses['stress'])
+            if 'timer' not in command:
+                response += "Would you like me to set a study timer? "
+        elif intent == 'music':
+            if 'play' in command and not any(genre in command for genre in ['study', 'focus', 'ambient']):
+                response += "I can suggest some focus-friendly music if you're studying. "
+        elif intent == 'weather':
+            response += "Would you like to know the forecast for the rest of the day? "
         
         return response
 
-    def process_command(self, command):
-        print(f"[DEBUG] Received command: {command}")  # Debug line
-        command = command.lower()
-        response = ""
-        
-        # Add personality and contextual awareness
-        self.last_command_time = getattr(self, 'last_command_time', None)
-        current_time = datetime.now()
-        
-        # Add time-based greetings with personality
-        if self.last_command_time is None or (current_time - self.last_command_time).seconds > 300:
-            hour = current_time.hour
-            if 5 <= hour < 12:
-                response = "Good morning! Hope you're ready for a productive day! "
-            elif 12 <= hour < 17:
-                response = "Good afternoon! How's your day going? "
-            else:
-                response = "Good evening! Still working hard, I see! "
-        
-        self.last_command_time = current_time
-        
+    def process_command(self, command: str) -> str:
+        """Process the command and return response"""
         try:
-            # Study Commands
-            if "timer" in command and ("start" in command or "minute" in command):
-                base_response = self.get_contextual_response('timer')
-                response += base_response + self.handle_study_timer(command)
-                if self.conversation_context['follow_up_needed']:
-                    response += "\nWould you like me to set up any study materials while the timer runs?"
+            if not command:
+                return "I didn't receive any command. Could you please try again?"
+                
+            self.logger.info(f"Processing command: {command}")
+            command = command.lower()
             
-            elif "flashcard" in command:
-                base_response = self.get_contextual_response('study')
-                response += base_response + self.handle_flashcards(command)
-                if 'create' in command:
-                    response += "\nGreat job adding flashcards! Would you like to do a quick review session?"
+            # Update last command time and check for greeting
+            current_time = datetime.now()
+            response = self._handle_time_based_greeting(current_time)
             
-            elif "assignment" in command:
-                base_response = self.get_contextual_response('study')
-                response += base_response + self.handle_assignments(command)
-                if 'due' in command:
-                    response += "\nI can help you break this down into manageable tasks. Would that be helpful?"
+            # Determine intent and get command handler
+            intent = self.determine_intent(command)
+            command_class = self.command_registry.get_command(intent)
             
-            # Keep existing command handling with added personality
-            elif "time" in command or "date" in command:
-                response += self.get_current_time_date(command)
-                response += "\nNeed me to set any reminders for you?"
-            
-            elif "music" in command or "play" in command:
-                response += self.get_contextual_response('entertainment')
-                response += self.control_music(command)
+            if command_class:
+                # Execute command through command pattern
+                command_instance = command_class(self)
+                command_response = command_instance.execute(command)
+                response += command_response
+            else:
+                # Handle specific commands based on intent
+                if intent == 'task':
+                    if 'timer' in command:
+                        response += self.handle_study_timer(command)
+                    elif 'reminder' in command:
+                        response += self.handle_reminder(command)
+                    elif 'schedule' in command:
+                        response += self.handle_schedule(command)
+                elif intent == 'study':
+                    if 'flashcard' in command:
+                        response += self.handle_flashcards(command)
+                    elif 'assignment' in command:
+                        response += self.handle_assignments(command)
+                elif intent == 'music':
+                    response += self.control_music(command)
+                elif intent == 'weather':
+                    response += self.get_weather(command)
+                elif intent == 'app':
+                    response += self.launch_application(command)
+                elif intent == 'search':
+                    response += self.web_search(command)
+                elif intent == 'conversation':
+                    if self.conversation_context['last_topic']:
+                        response += self.handle_follow_up(command)
+                    else:
+                        response += self._handle_general_conversation(command)
+                
+                # Handle study-related follow-up
                 if 'study' in self.conversation_context['last_topic']:
                     response += "\nI can help you find some focus-friendly music if you'd like."
+                
+                # Add application opening command handling
+                elif any(app_name in command for app_name in self.app_map.keys()) or "open" in command:
+                    response += self.open_application(command)
+                
+                # Update conversation context
+                if "study" in command or "assignment" in command or "flashcard" in command:
+                    self.conversation_context['last_topic'] = 'study'
+                elif "music" in command or "play" in command:
+                    self.conversation_context['last_topic'] = 'entertainment'
             
-            # Add application opening command handling
-            elif any(app_name in command for app_name in self.app_map.keys()) or "open" in command:
-                response += self.open_application(command)
+            # Store conversation history
+            self.conversation_storage.store_interaction(command, response)
             
-            # Update conversation context
-            if "study" in command or "assignment" in command or "flashcard" in command:
-                self.conversation_context['last_topic'] = 'study'
-            elif "music" in command or "play" in command:
-                self.conversation_context['last_topic'] = 'entertainment'
+            # Store the interaction with context
+            screen_context = self.screen_analyzer.get_screen_context() if hasattr(self, 'screen_analyzer') else {}
+            context = {
+                'screen_context': screen_context,
+                'mood': self.conversation_context['mood'],
+                'last_topic': self.conversation_context['last_topic']
+            }
+            self.conversation_storage.add_interaction(command, response, context)
             
-            if not response:
-                response = "I'm not quite sure about that one. Could you rephrase it, or would you like to know what I can help you with?"
+            if hasattr(self, 'gui'):
+                self.gui.display_response(response)
+
+            if hasattr(self, 'config') and self.config.get('voice_response'):
+                self.voice_engine.speak(response)
+                
+            return response.strip()
             
         except Exception as e:
-            response = f"Oops! Something went wrong there. Mind trying that again? Error: {str(e)}"
-        
-        self.gui.display_response(response)
+            error_msg = f"Oops! Something went wrong there. Mind trying that again? Error: {str(e)}"
+            self.logger.error(error_msg)
+            return error_msg
 
-        if self.config['voice_response']:
-            self.voice_engine.speak(response)
+    def handle_follow_up(self, command):
+        """Handle follow-up interactions based on previous conversation context
+        Args:
+            command (str): The user's follow-up command
+        Returns:
+            str: Response to the follow-up command
+        """
+        try:
+            last_topic = self.conversation_context['last_topic']
+            response = ""
+            
+            if last_topic == 'study':
+                if 'yes' in command:
+                    response = "Great! Let me help you set that up. "
+                    if self.conversation_context.get('timer_suggested'):
+                        response += self.handle_study_timer("start timer 25 minutes")
+                elif 'no' in command:
+                    response = "No problem! Let me know if you need anything else. "
+            elif last_topic == 'weather':
+                if 'yes' in command:
+                    response = self.get_weather("forecast")
+                elif 'no' in command:
+                    response = "Alright! Let me know if you want to check the weather later."
+            
+            return response
+            
+        except KeyError:
+            return "I don't have context from our previous conversation."
+        except Exception as e:
+            return f"Error processing follow-up: {str(e)}"
+
+    def _handle_time_based_greeting(self, current_time: datetime) -> str:
+        """Handle time-based greetings"""
+        if self.last_command_time is None or (current_time - self.last_command_time).seconds > 300:
+            self.last_command_time = current_time
+            hour = current_time.hour
+            
+            if 5 <= hour < 12:
+                return "Good morning! Hope you're ready for a productive day! "
+            elif 12 <= hour < 17:
+                return "Good afternoon! How's your day going? "
+            else:
+                return "Good evening! Still working hard, I see! "
+        return ""
+    
+    def _handle_general_conversation(self, command: str) -> str:
+        """Handle general conversation when no specific intent is found"""
+        try:
+            if any(word in command for word in ['hi', 'hello', 'hey']):
+                return "Hello! How can I help you today? "
+            elif any(word in command for word in ['what', 'how', 'why', 'when', 'where']):
+                if 'you' in command:
+                    return "I'm your AI assistant, designed to help you with various tasks. "
+                return "That's an interesting question. How can I help you with that? "
+            elif any(word in command for word in ['thanks', 'thank', 'appreciate']):
+                return "You're welcome! I'm happy to help. "
+            elif any(word in command for word in ['bye', 'goodbye', 'see you']):
+                return "Goodbye! Have a great day! "
+            return "I'm here to help! You can ask me about the weather, play music, or help with your studies. "
+        except Exception as e:
+            self.logger.error(f"Error in general conversation: {str(e)}")
+            return "I'm not sure how to respond to that. Could you try rephrasing?"
+
+    def handle_reminder(self, command):
+        response = ""
+        if 'set' in command:
+            # Extract time and task from command
+            response = "I'll remind you about that. "
+            self.conversation_context['follow_up_needed'] = True
+        elif 'list' in command:
+            response = "Here are your current reminders: "
+            # Implement reminder listing logic
+        return response
+
+    def handle_schedule(self, command):
+        response = ""
+        if "today" in command:
+            response = "Here's your schedule for today: "
+            # Implement schedule retrieval logic
+        elif "add" in command:
+            response = "I'll add that to your schedule. "
+            # Implement schedule addition logic
+        elif "delete" in command:
+            try:
+                schedule_id = int(command.split("delete schedule")[-1].strip())
+                if self.study_manager.db.delete_schedule(schedule_id):
+                    return f"Schedule {schedule_id} deleted successfully"
+                return "Schedule not found"
+            except ValueError:
+                return "Use format: 'delete schedule [ID]'"
         return response
 
     def toggle_listening(self):
@@ -459,13 +618,7 @@ class CommandHandler:
     # Research Methods
     def search_wikipedia(self, command):
         query = command.replace("wikipedia", "").strip()
-        try:
-            summary = wikipedia.summary(query, sentences=2)
-            return f"Wikipedia: {summary}"
-        except wikipedia.exceptions.DisambiguationError as e:
-            return f"Multiple matches: {', '.join(e.options[:3])}"
-        except wikipedia.exceptions.PageError:
-            return "No Wikipedia page found"
+        return self.external_services.search_wikipedia(query, sentences=2)
 
     def search_duckduckgo(self, command):
         query = command.replace("search web for", "").strip()
@@ -501,10 +654,11 @@ class CommandHandler:
         - Start [X] minute study timer
         - Add flashcard [Front]: [Back]
         - Add assignment [Task] due [Date]
-        - What's on schedule today?
+        - "What's on schedule today?"
         - Open [application]
         - Play/Pause music
         - Wikipedia [topic]
         - Search web for [query]
         - Open file [path]
-        - Check email"""
+        - Check email
+        """

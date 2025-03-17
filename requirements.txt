@@ -1,28 +1,79 @@
-SpeechRecognition==3.10.0  # For speech recognition
-pyttsx3==2.71  # For text-to-speech conversion
-python-dotenv==0.19.0  # For managing environment variables
-ttkthemes==3.2.2  # For theme support
-pvporcupine==3.0.5  # For voice commands
+# Core dependencies
+tkinter>=8.6  #
+ttkthemes>=3.2.2
+pillow>=9.0.0
+pygame>=2.1.0
+pyttsx3>=2.90
+SpeechRecognition>=3.8.1
+nltk>=3.6.5
+numpy>=1.21.0
+requests>=2.26.0
+python-dotenv>=0.19.0
+
+# Database
+sqlite3>=3.35.0
+
+# Email support
+smtplib>=3.0.0
+email>=3.0.0
+
+# New additions for enhanced features
+PyJWT>=2.3.0          # For session management
+psutil>=5.8.0         # For system monitoring
+pytest>=7.0.0         # For testing framework
+python-logging>=0.4.9  # For advanced logging
+pathlib>=1.0.1        # For path handling
+shutil>=1.7.0         # For file operations
+typing>=3.7.4         # For type hints
+functools>=3.10.0     # For advanced function tools
+collections>=3.10.0   # For specialized container datatypes
+datetime>=3.10.0      # For date and time handling
+json>=3.10.0          # For JSON operations
+
+# Voice and Audio Processing
+pvporcupine==3.0.5  # For wake word detection
 PyAudio==0.2.14  # For recording audio
+sounddevice==0.5.1  # For playing audio files
+webrtcvad==2.0.10  # For voice activity detection
+librosa==0.10.1  # For audio processing
+vosk==0.3.45  # For offline speech recognition
+gTTS==2.4.0  # For Google Text-to-Speech
+pygame==2.5.0  # For sound notifications
+
+# System Control and Monitoring
 pynput==1.7.6  # For keyboard and mouse control
 psutil==7.0.0  # For system monitoring
-pandas==1.5.3  # For data analysis
+pyautogui==0.9.54  # For system control and automation
+
+# Natural Language Processing
 nltk==3.9.1  # For natural language processing tasks
-pygame==2.5.0  # For sound notifications
-python-dateutil==2.8.2
-spacy==3.7.2  # For NLP tasks
-wikipedia==1.4.0  # For wikipedia searches
-sounddevice==0.5.1  # For playing audio files
-IMAPClient==3.0.1  # For email management
-keyring==23.13.1  # For storing passwords securely
+spacy==3.7.2  # For advanced NLP tasks
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0-py3-none-any.whl  # Small English model
 transformers==4.36.2  # For advanced NLP tasks
 torch==2.1.2  # Deep learning support
-librosa==0.10.1  # For audio processing
-webrtcvad==2.0.10  # For voice activity detection
 num2words==0.5.13  # For number to word conversion
-deepL==1.17.0  # For language translation
-gTTS==2.4.0  # For Google Text-to-Speech
-vosk==0.3.45  # For offline speech recognition
-pyautogui==0.9.54  # For system control and automation
+
+# Data Processing and Analysis
+pandas==1.5.3  # For data analysis
+python-dateutil==2.8.2  # For date handling
 requests==2.31.0  # For making HTTP requests
+
+# External Services Integration
+wikipedia==1.4.0  # For wikipedia searches
+wolframalpha==5.0.0  # For computational knowledge engine
+deepL==1.17.0  # For language translation
+IMAPClient==3.0.1  # For email management
+
+# Image and Screen Processing
+opencv-python==4.8.1.78  # For image capture and processing
+pytesseract==0.3.10  # For optical character recognition
+Pillow==10.1.0  # For image processing
+
+# Security and Storage
+keyring==23.13.1  # For storing passwords securely
+cryptography==41.0.7  # For encryption and secure data handling
+
+# Utilities
+pyjokes==0.6.0  # For joke generation
+beautifulsoup4==4.12.2  # For web scraping
+colorama==0.4.6  # For colored terminal output

@@ -8,16 +8,23 @@ class WeatherService:
         self.base_url = 'http://api.openweathermap.org/data/2.5/weather'
         self.default_city = os.getenv('DEFAULT_CITY', 'London')
         self.units = os.getenv('WEATHER_UNITS', 'metric')
+        self.offline_mode = not bool(self.api_key)  # Enable offline mode if no API key
 
-    def get_weather(self, city=None):
+    def get_current_weather(self, city=None):
+        if self.offline_mode:
+            return self._get_offline_weather(city or self.default_city)
+
         try:
             city = city or self.default_city
+            if not self.api_key:
+                return self._get_offline_weather(city)
+
             params = {
                 'q': city,
                 'appid': self.api_key,
                 'units': self.units
             }
-            response = requests.get(self.base_url, params=params)
+            response = requests.get(self.base_url, params=params, timeout=5)
             response.raise_for_status()
             data = response.json()
 
@@ -41,16 +48,25 @@ class WeatherService:
         except requests.RequestException as e:
             return f"I'm sorry, I couldn't fetch the weather information. {str(e)}"
 
+    def _get_offline_weather(self, city):
+        return f"I'm currently in offline mode and cannot fetch real weather data for {city}. Please check your internet connection and ensure the WEATHER_API_KEY is set in your environment variables."
+
     def get_daily_forecast(self, city=None):
+        if self.offline_mode:
+            return self._get_offline_weather(city or self.default_city)
+
         try:
             city = city or self.default_city
+            if not self.api_key:
+                return self._get_offline_weather(city)
+
             forecast_url = 'http://api.openweathermap.org/data/2.5/forecast'
             params = {
                 'q': city,
                 'appid': self.api_key,
                 'units': self.units
             }
-            response = requests.get(forecast_url, params=params)
+            response = requests.get(forecast_url, params=params, timeout=5)
             response.raise_for_status()
             data = response.json()
 

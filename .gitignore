@@ -1,4 +1,6 @@
 assistant/__pycache__
+assistant/commands/__pycache__
+conversations
 .env
 assistant/resources/wake_word.ppn
 student_data.db

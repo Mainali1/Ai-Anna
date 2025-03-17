@@ -40,13 +40,21 @@ class FileSystemHandler:
         """Check if a path is safe to access"""
         try:
             path = os.path.abspath(path)
-            # Check if path is in system directories
+            
+            # Check for system directories
             if any(path.lower().startswith(sys_dir.lower()) for sys_dir in self.system_dirs):
                 return False
+            
+            # Check for suspicious patterns
+            suspicious_patterns = ['%temp%', 'system32', 'windows']
+            if any(pattern in path.lower() for pattern in suspicious_patterns):
+                return False
+            
             # Check if path exists and is accessible
             if os.path.exists(path):
                 return os.access(path, os.R_OK)
-            # If path doesn't exist, check if parent directory is accessible
+            
+            # If path doesn't exist, check parent directory
             parent = os.path.dirname(path)
             return os.access(parent, os.W_OK)
         except Exception:

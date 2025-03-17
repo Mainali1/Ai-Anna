@@ -86,11 +86,20 @@ class AIServiceHandler:
     def _validate_cloud_service(self, service: Dict) -> bool:
         """Validate if a cloud service is accessible"""
         try:
-            response = requests.get(
-                f"{service['url']}/health",
-                timeout=5
-            )
-            return response.status_code == 200
+            # Add timeout and retry logic
+            for attempt in range(3):
+                try:
+                    response = requests.get(
+                        f"{service['url']}/health",
+                        timeout=5,
+                        headers={'User-Agent': 'Anna-AI-Assistant'}
+                    )
+                    if response.status_code == 200:
+                        return True
+                    time.sleep(1)
+                except requests.RequestException:
+                    continue
+            return False
         except Exception:
             return False
 

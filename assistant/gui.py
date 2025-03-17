@@ -16,6 +16,16 @@ class AssistantGUI:
         self.voice_resp_var = tk.BooleanVar(value=self.config['voice_response'])
         self.beep_sound_var = tk.BooleanVar(value=self.config['beep_sound'])
         self.ai_mode_var = tk.StringVar(value="AI Mode: OFF")
+        self.mood_var = tk.StringVar(value="Mood: Neutral")
+        self.secure_config_var = tk.StringVar(value="Config: Secure")
+        self.current_mood = "neutral"
+        self.mood_colors = {
+            "happy": "#90EE90",  # Light green
+            "neutral": "#F0F0F0",  # Light gray
+            "focused": "#ADD8E6",  # Light blue
+            "tired": "#FFB6C1",  # Light pink
+            "concerned": "#FFE4B5"  # Light orange
+        }
         
         # Create main container
         self.main_container = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
@@ -36,13 +46,6 @@ class AssistantGUI:
         # Initialize UI components
         self.create_sidebar_content()
         self.create_main_content()
-        
-        # Create Siri-like animation canvas
-        self.animation_canvas = tk.Canvas(self.main_frame, width=60, height=60, bg=self.root['bg'], highlightthickness=0)
-        self.animation_canvas.pack(side=tk.BOTTOM, pady=5)
-        self.animation_points = []
-        self.animation_angle = 0
-        self.is_animating = False
         
         # Create status bar and processing label
         self.status_bar = ttk.Label(self.root, text="Ready", relief=tk.SUNKEN, anchor=tk.W)
@@ -190,14 +193,42 @@ class AssistantGUI:
             self.root.after(0, self.stop_processing_animation)
     
     def display_response(self, response):
-        """Display the response in the UI"""
+        """Display the response in the UI with mood-based coloring"""
         if response:
-            self.show_response(response)
+            self.response_text.config(state=tk.NORMAL)
+            self.response_text.tag_configure("mood_tag", background=self.mood_colors.get(self.current_mood, self.mood_colors["neutral"]))
+            self.response_text.insert(tk.END, f"{response}\n\n", "mood_tag")
+            self.response_text.see(tk.END)
+            self.response_text.config(state=tk.DISABLED)
             self.status_bar.config(text="Ready")
+            
+    def update_mood(self, mood):
+        """Update the assistant's mood display"""
+        self.current_mood = mood.lower()
+        self.mood_var.set(f"Mood: {mood.capitalize()}")
+        
+    def update_secure_config(self, is_secure):
+        """Update the secure configuration status"""
+        status = "Secure" if is_secure else "Warning"
+        color = "green" if is_secure else "red"
+        self.secure_config_var.set(f"Config: {status}")
+        self.status_bar.config(foreground=color)
 
 
 
     def create_sidebar_content(self):
+        # Status section
+        status_frame = ttk.LabelFrame(self.sidebar, text='Assistant Status', style='Custom.TLabelframe')
+        status_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Mood indicator
+        mood_label = ttk.Label(status_frame, textvariable=self.mood_var)
+        mood_label.pack(fill=tk.X, padx=2, pady=2)
+        
+        # Secure config indicator
+        secure_label = ttk.Label(status_frame, textvariable=self.secure_config_var)
+        secure_label.pack(fill=tk.X, padx=2, pady=2)
+        
         # Settings section
         settings_frame = ttk.LabelFrame(self.sidebar, text='Settings', style='Custom.TLabelframe')
         settings_frame.pack(fill=tk.X, padx=5, pady=5)
@@ -406,6 +437,9 @@ class AssistantGUI:
             front = card.get('front', '')
             back = card.get('back', '')
             deck = card.get('deck', 'Default')
+            
+            # Get card statistics from SRS
+            stats = self.srs.get_card_stats(card['id'])
             next_review = card.get('next_review', 'Not scheduled')
             
             self.flashcards_area.insert(tk.END,
@@ -416,6 +450,8 @@ class AssistantGUI:
                 f"Back: {back}\n")
             self.flashcards_area.insert(tk.END,
                 f"Next Review: {next_review}\n")
+            self.flashcards_area.insert(tk.END,
+                f"Reviews: {stats['total_reviews']} | Avg Quality: {stats['average_quality']}\n")
             self.flashcards_area.insert(tk.END, "   " + "-"*40 + "\n")
 
     def update_schedule(self, schedule):

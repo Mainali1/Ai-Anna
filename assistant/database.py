@@ -218,3 +218,34 @@ class DatabaseHandler:
         with self._get_cursor() as c:
             c.execute('DELETE FROM assignments WHERE id = ?', (assignment_id,))
             return c.rowcount > 0
+
+    def setup_tables(self):
+        """Setup all required database tables"""
+        tables = [
+            """CREATE TABLE IF NOT EXISTS flashcards (
+                id INTEGER PRIMARY KEY,
+                front TEXT NOT NULL,
+                back TEXT NOT NULL,
+                deck TEXT DEFAULT 'Default',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS flashcard_reviews (
+                id INTEGER PRIMARY KEY,
+                card_id INTEGER,
+                review_date DATETIME,
+                ease_factor REAL,
+                interval INTEGER,
+                quality INTEGER,
+                FOREIGN KEY (card_id) REFERENCES flashcards(id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS study_sessions (
+                id INTEGER PRIMARY KEY,
+                start_time DATETIME,
+                end_time DATETIME,
+                subject TEXT,
+                notes TEXT
+            )"""
+        ]
+        
+        for table in tables:
+            self.execute(table)

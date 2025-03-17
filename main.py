@@ -9,13 +9,24 @@ from assistant.config_manager import ConfigManager
 from assistant.spaced_repetition import SpacedRepetitionSystem
 from assistant.ai_service_handler import AIServiceHandler
 from assistant.file_system_handler import FileSystemHandler
+from assistant.external_services import ExternalServices
 from ttkthemes import ThemedTk
+from assistant.dependency_container import DependencyContainer
+from assistant.event_system import EventSystem
+from assistant.session_manager import SessionManager
+from assistant.backup_manager import BackupManager
+from assistant.logger import LogManager
+import json
 
 def main():
     try:
         # Initialize root window and config
-        root = ThemedTk(theme="black")
-        config = ConfigManager()
+        try:
+            root = ThemedTk(theme="black")
+            config = ConfigManager()
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize window or config: {str(e)}")
+
         
         # Initialize core components with error handling
         try:
@@ -26,6 +37,7 @@ def main():
             email_manager = EmailManager()
             ai_service = AIServiceHandler(config.config)
             file_system = FileSystemHandler()
+            external_services = ExternalServices(config.config)
         except Exception as e:
             raise RuntimeError(f"Failed to initialize core components: {str(e)}")
         
@@ -37,19 +49,20 @@ def main():
         
         # Initialize VoiceEngine and CommandHandler AFTER GUI
         try:
+            voice_engine = VoiceEngine(gui, None, config)  # Initialize voice engine first
             command_handler = CommandHandler(
                 gui=gui,
-                voice_engine=None,  # Will be set after initialization
+                voice_engine=voice_engine,  # Pass initialized voice engine
                 study_manager=study_manager,
                 music_controller=music_controller,
                 email_manager=email_manager,
                 config=config,
                 spaced_repetition=spaced_repetition,
                 ai_service=ai_service,
-                file_system=file_system
+                file_system=file_system,
+                external_services=external_services
             )
-            voice_engine = VoiceEngine(gui, command_handler, config)
-            command_handler.voice_engine = voice_engine  # Set voice engine after initialization
+            voice_engine.command_handler = command_handler  # Update voice engine's reference
         except Exception as e:
             raise RuntimeError(f"Failed to initialize voice engine or command handler: {str(e)}")
         
@@ -61,7 +74,44 @@ def main():
         root.mainloop()
     except Exception as e:
         print(f"Critical error during initialization: {str(e)}")
-        raise
+        logging.error(f"Critical initialization error: {str(e)}")
+        raise SystemExit(1)
+
+
+def setup_application():
+    # Initialize container
+    container = DependencyContainer()
+    
+    # Setup logger
+    log_manager = LogManager()
+    logger = log_manager.get_logger()
+    container.register_service('logger', logger)
+    
+    # Setup event system
+    event_system = EventSystem()
+    container.register_service('events', event_system)
+    
+    # Setup session manager
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+    session_manager = SessionManager(config['secret_key'])
+    container.register_service('session_manager', session_manager)
+    
+    # Setup backup manager
+    backup_manager = BackupManager()
+    container.register_service('backup_manager', backup_manager)
+    
+    return container
 
 if __name__ == "__main__":
-    main()
+    container = setup_application()
+    logger = container.get_service('logger')
+    logger.info("Application started")
+    
+    # Start the application
+    try:
+        from assistant.gui import GUI
+        app = GUI(container)
+        app.run()
+    except Exception as e:
+        logger.error(f"Application error: {str(e)}")

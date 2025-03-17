@@ -4,28 +4,31 @@ from dotenv import load_dotenv
 
 class ConfigManager:
     def __init__(self):
-        self.config_file = 'config.json'
-        # Load environment variables from .env file
-        load_dotenv()
-        
+        self.config_file = Path("config.json")
         self.default_config = {
-            'offline_mode': False,
-            'voice_response': True,
-            'beep_sound': False,
-            'wake_phrase': "Anna ready",
-            'music_path': "~/Music",
-            'speech_rate': 150,
-            'voice_gender': 'female'
+            "ai_services": {
+                "timeout": 30,
+                "max_retries": 3
+            },
+            "study": {
+                "session_duration": 25,
+                "break_duration": 5
+            },
+            "security": {
+                "allowed_paths": [],
+                "blocked_paths": []
+            }
         }
-        self.load_config()
+        self.config = self.load_config()
 
     def load_config(self):
         try:
-            with open(self.config_file) as f:
-                self.config = {**self.default_config, **json.load(f)}
-        except FileNotFoundError:
-            self.config = self.default_config
-            self.save_config()
+            if self.config_file.exists():
+                with open(self.config_file, 'r') as f:
+                    return {**self.default_config, **json.load(f)}
+            return self.default_config
+        except Exception:
+            return self.default_config
 
     def save_config(self):
         with open(self.config_file, 'w') as f:
