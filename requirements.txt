@@ -1,34 +1,18 @@
 # Core dependencies
-tkinter>=8.6  #
 ttkthemes>=3.2.2
-pillow>=9.0.0
-pygame>=2.1.0
+Pillow>=10.1.0  # Using latest version from Image Processing section
+pygame>=2.5.0  # Using latest version from Voice Processing section
 pyttsx3>=2.90
 SpeechRecognition>=3.8.1
-nltk>=3.6.5
+nltk>=3.9.1  # Using latest version from NLP section
 numpy>=1.21.0
-requests>=2.26.0
+requests>=2.31.0  # Using latest version from Data Processing section
 python-dotenv>=0.19.0
-
-# Database
-sqlite3>=3.35.0
-
-# Email support
-smtplib>=3.0.0
-email>=3.0.0
 
 # New additions for enhanced features
 PyJWT>=2.3.0          # For session management
-psutil>=5.8.0         # For system monitoring
+psutil>=7.0.0         # Using latest version from System Control section
 pytest>=7.0.0         # For testing framework
-python-logging>=0.4.9  # For advanced logging
-pathlib>=1.0.1        # For path handling
-shutil>=1.7.0         # For file operations
-typing>=3.7.4         # For type hints
-functools>=3.10.0     # For advanced function tools
-collections>=3.10.0   # For specialized container datatypes
-datetime>=3.10.0      # For date and time handling
-json>=3.10.0          # For JSON operations
 
 # Voice and Audio Processing
 pvporcupine==3.0.5  # For wake word detection
@@ -43,7 +27,8 @@ pygame==2.5.0  # For sound notifications
 # System Control and Monitoring
 pynput==1.7.6  # For keyboard and mouse control
 psutil==7.0.0  # For system monitoring
-pyautogui==0.9.54  # For system control and automation
+pyautogui==0.9.53  # For system control and automation
+pywin32==306  # For system control and automation
 
 # Natural Language Processing
 nltk==3.9.1  # For natural language processing tasks

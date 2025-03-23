@@ -35,16 +35,67 @@ class ExternalServices:
         except Exception as e:
             return f"Error querying WolframAlpha: {str(e)}"
 
-    def search_wikipedia(self, query: str, sentences: int = 3) -> str:
-        """Search Wikipedia and return a summary"""
+    def web_search(self, query: str) -> list:
+        """Perform a web search and return results"""
         try:
-            return wikipedia.summary(query, sentences=sentences)
-        except wikipedia.exceptions.DisambiguationError as e:
-            return f"Multiple matches found. Please be more specific. Options: {', '.join(e.options[:5])}"
-        except wikipedia.exceptions.PageError:
-            return f"No Wikipedia page found for '{query}'"
+            # Process the query
+            query = query.strip()
+            if not query:
+                return []
+
+            # Initialize results list
+            results = []
+            
+            # Provide meaningful offline search results
+            query_words = query.lower().split()
+            
+            # Categorize the search
+            if any(word in query_words for word in ['news', 'latest', 'update']):
+                results.extend([
+                    {
+                        'title': f'Latest News about {query}',
+                        'snippet': 'I am currently in offline mode. To get real-time news updates, please ensure you have an internet connection and valid API keys configured.',
+                        'link': 'https://news.google.com'
+                    }
+                ])
+            elif any(word in query_words for word in ['wiki', 'what is', 'who is', 'definition']):
+                results.extend([
+                    {
+                        'title': f'Wikipedia: {query}',
+                        'snippet': 'For encyclopedic information, please visit Wikipedia directly or ensure the system has proper API access configured.',
+                        'link': f'https://wikipedia.org/wiki/Special:Search?search={query}'
+                    }
+                ])
+            else:
+                results.extend([
+                    {
+                        'title': f'Search Results for {query}',
+                        'snippet': 'To get real search results, please ensure the system is properly configured with search API keys and has internet access.',
+                        'link': f'https://www.google.com/search?q={query}'
+                    }
+                ])
+            return results
         except Exception as e:
-            return f"Error searching Wikipedia: {str(e)}"
+            self.logger.error(f"Error in web search: {str(e)}")
+            return []
+
+    def wikipedia_search(self, query: str) -> dict:
+        """Search Wikipedia and return article summary and URL"""
+        try:
+            # Search Wikipedia
+            page = wikipedia.page(query)
+            return {
+                'summary': wikipedia.summary(query, sentences=3),
+                'url': page.url
+            }
+        except wikipedia.exceptions.DisambiguationError as e:
+            options = ', '.join(e.options[:5])
+            raise Exception(f"Multiple matches found. Please be more specific. Options: {options}")
+        except wikipedia.exceptions.PageError:
+            raise Exception(f"No Wikipedia page found for '{query}'")
+        except Exception as e:
+            raise Exception(f"Error searching Wikipedia: {str(e)}")
+
 
     def capture_image(self, save_path: Optional[str] = None) -> str:
         """Capture an image from the camera"""

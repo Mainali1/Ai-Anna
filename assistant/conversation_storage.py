@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
+import random
 
 class ConversationStorage:
     def __init__(self, base_dir: str = 'conversations'):

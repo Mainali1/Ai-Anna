@@ -26,6 +26,14 @@
 - **Mood Detection**: Context-aware responses with dynamic mood transitions
 - **File System Integration**: Organized file management and access
 - **Email Integration**: Email management capabilities
+- **Dynamic Responses**: Personalized interactions via DynamicResponseGenerator
+- **Enhanced Context**: Improved conversation awareness with EnhancedContextManager
+- **Session Management**: Secure user session handling
+- **Backup System**: Automated data backup and restoration capabilities
+- **Screen Analysis**: Ability to analyze screen content for context-aware assistance
+- **Event System**: Robust event handling and management
+- **Dependency Container**: Efficient dependency injection and management
+- **Conversation Storage**: Persistent storage of conversation history
 
 ### 🖥️ **System Integration**
 - **App Launcher**: Extensive application control (Chrome, Discord, VS Code, etc.)
@@ -124,8 +132,16 @@ graph TD
     B <--> G[AI Service Handler]
     B <--> H[File System Handler]
     B <--> I[Music Controller]
+    B <--> L[Event System]
+    B <--> M[Screen Analyzer]
+    B <--> N[Session Manager]
+    B <--> O[Backup Manager]
     C <--> J[Database]
     D <--> K[Picovoice]
+    G <--> P[Dynamic Response Generator]
+    G <--> Q[Enhanced Context Manager]
+    G <--> R[Dependency Container]
+    J <--> S[Conversation Storage]
 ```
 
 ### Key Technologies
@@ -158,21 +174,43 @@ Ai-Anna/
 ├── assistant/
 │   ├── __init__.py
 │   ├── ai_service_handler.py
+│   ├── backup_manager.py
 │   ├── command_handler.py
+│   ├── commands/
+│   │   ├── __init__.py
+│   │   ├── help_command.py
+│   │   ├── music_command.py
+│   │   ├── system_command.py
+│   │   ├── time_command.py
+│   │   ├── weather_command.py
+│   │   ├── web_search_command.py
+│   │   ├── wikipedia_command.py
+│   │   └── youtube_command.py
 │   ├── config_manager.py
+│   ├── conversation_storage.py
 │   ├── database.py
+│   ├── dependency_container.py
+│   ├── dynamic_response_generator.py
 │   ├── email_manager.py
+│   ├── enhanced_context_manager.py
+│   ├── env_loader.py
+│   ├── event_system.py
+│   ├── external_services.py
 │   ├── file_system_handler.py
 │   ├── gui.py
+│   ├── logger.py
 │   ├── mood_detector.py
 │   ├── music_controller.py
+│   ├── resources/
+│   │   └── email_templates.json
+│   ├── screen_analyzer.py
+│   ├── secure_config.py
+│   ├── session_manager.py
 │   ├── spaced_repetition.py
 │   ├── study_manager.py
 │   ├── system_controller.py
 │   ├── voice_engine.py
-│   ├── weather_service.py
-│   └── resources/
-│       └── email_templates.json
+│   └── weather_service.py
 │
 ├── requirements.txt
 ├── README.md
@@ -180,6 +218,7 @@ Ai-Anna/
 ├── CONTRIBUTING.md
 ├── CODE_OF_CONDUCT.md
 ├── config.json
+├── setup_startup.bat
 ├── .env
 ├── .gitignore
 └── bell.wav

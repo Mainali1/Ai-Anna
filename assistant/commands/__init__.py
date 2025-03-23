@@ -6,7 +6,13 @@ class Command(ABC):
     """Base class for all commands"""
     def __init__(self, handler):
         self.handler = handler
-        self.context = handler.conversation_context
+        # Safely access conversation context
+        self.context = getattr(handler, 'conversation_context', {
+            'last_topic': None,
+            'follow_up_needed': False,
+            'user_name': None,
+            'mood': 'neutral'
+        })
 
     @abstractmethod
     def execute(self, command: str) -> str:

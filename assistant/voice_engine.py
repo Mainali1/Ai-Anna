@@ -55,7 +55,22 @@ class VoiceEngine:
         try:
             access_key = os.getenv('PICOVOICE_ACCESS_KEY')
             if not access_key:
-                raise ValueError("PICOVOICE_ACCESS_KEY not found in environment variables")
+                self.gui.show_error("PICOVOICE_ACCESS_KEY not found in environment variables. Using fallback mode.")
+                # Create a dummy porcupine object with the necessary attributes
+                class DummyPorcupine:
+                    def __init__(self):
+                        self.sample_rate = 16000
+                        self.frame_length = 512
+                    
+                    def process(self, audio_frame):
+                        # Always return -1 (no wake word detected)
+                        return -1
+                    
+                    def delete(self):
+                        pass
+                
+                self.porcupine = DummyPorcupine()
+                return
                 
             self.porcupine = pvporcupine.create(
                 access_key=access_key,
@@ -63,8 +78,21 @@ class VoiceEngine:
                 keyword_paths=[self.get_wake_word_path()]
             )
         except Exception as e:
-            self.gui.show_error(f"Wake word detector initialization error: {str(e)}")
-            raise
+            self.gui.show_error(f"Wake word detector initialization error: {str(e)}. Using fallback mode.")
+            # Create a dummy porcupine object with the necessary attributes
+            class DummyPorcupine:
+                def __init__(self):
+                    self.sample_rate = 16000
+                    self.frame_length = 512
+                
+                def process(self, audio_frame):
+                    # Always return -1 (no wake word detected)
+                    return -1
+                
+                def delete(self):
+                    pass
+            
+            self.porcupine = DummyPorcupine()
 
     def init_audio_config(self):
         if not hasattr(self, 'porcupine'):
@@ -126,39 +154,68 @@ class VoiceEngine:
             return "Why did the AI assistant go to therapy? It had too many processing issues!"
 
     def speak(self, text):
+        if not text:
+            print("No text to speak")
+            return
+            
+        print(f"Speaking: {text}")
+        
         def _speak(txt):
             try:
-                # Add personality to responses
-                if 'joke' in txt.lower():
-                    txt = self.get_random_joke()
-                elif any(greeting in txt.lower() for greeting in ['hello', 'hi', 'hey']):
-                    txt = f"{txt} I'm your AI assistant, how can I help you today?"
+                # Get dynamic response generator from container if available
+                dynamic_response = None
+                if hasattr(self.gui, 'container') and self.gui.container:
+                    try:
+                        dynamic_response = self.gui.container.get_service('dynamic_response')
+                    except KeyError:
+                        pass
+                
+                # Humanize response if dynamic response generator is available
+                if dynamic_response:
+                    txt = dynamic_response.humanize_response(txt)
+                # Fallback to basic personality adjustments
+                else:
+                    if 'joke' in txt.lower():
+                        txt = self.get_random_joke()
+                    elif any(greeting in txt.lower() for greeting in ['hello', 'hi', 'hey']):
+                        txt = f"{txt} I'm your AI assistant, how can I help you today?"
                 
                 if self.tts_engine == 'pyttsx3':
-                    if not hasattr(self, 'engine'):
-                        self.init_tts_engine()
-                    self.engine.say(txt)
-                    self.engine.runAndWait()
-                    self.engine.stop()
-                else:  # Use gTTS
+                    try:
+                        if not hasattr(self, 'engine') or self.engine is None:
+                            self.init_tts_engine()
+                        self.engine.say(txt)
+                        self.engine.runAndWait()
+                        self.engine.stop()
+                    except Exception as pyttsx_error:
+                        print(f"pyttsx3 error: {str(pyttsx_error)}. Falling back to gTTS.")
+                        # Fall back to gTTS
+                        self.tts_engine = 'gtts'
+                        # Continue to gTTS code below
+                
+                # Use gTTS if pyttsx3 failed or was not the selected engine
+                if self.tts_engine == 'gtts':
                     tts = gTTS(text=txt, lang='en', slow=False)
                     fp = BytesIO()
                     tts.write_to_fp(fp)
                     fp.seek(0)
-                    if not self.pygame_initialized:
-                        pygame.mixer.init()
-                        self.pygame_initialized = True
-                    pygame.mixer.music.load(fp)
-                    pygame.mixer.music.play()
-                    while pygame.mixer.music.get_busy():
-                        pygame.time.Clock().tick(10)
+                    try:
+                        if not self.pygame_initialized:
+                            pygame.mixer.init()
+                            self.pygame_initialized = True
+                        pygame.mixer.music.load(fp)
+                        pygame.mixer.music.play()
+                        while pygame.mixer.music.get_busy():
+                            pygame.time.Clock().tick(10)
+                    except Exception as pygame_error:
+                        print(f"pygame error: {str(pygame_error)}")
+                        self.gui.show_error(f"Voice synthesis error: {str(pygame_error)}")
             except Exception as e:
+                print(f"Speech error: {str(e)}")
                 self.gui.show_error(f"Speech error: {str(e)}")
-                # Reinitialize TTS engine on error
-                self.init_tts_engine()
-
-        if self.config['voice_response']:
-            Thread(target=_speak, args=(text,), daemon=True).start()
+        
+        # Run speech in a separate thread to avoid blocking
+        Thread(target=_speak, args=(text,), daemon=True).start()
 
     def get_wake_word_path(self):
         path = os.path.join(os.path.dirname(__file__), 'resources', 'wake_word.ppn')
@@ -184,11 +241,18 @@ class VoiceEngine:
     def handle_wake_word(self):
         self.is_processing = True
         try:
-            if self.config['beep_sound']:
+            print("Wake word detected! Processing...")
+            if self.config.get('beep_sound', True):
                 self.play_notification_sound()
-            if self.config['voice_response']:
-                self.speak(self.config['wake_phrase'])
+            if self.config.get('voice_response', True):
+                self.speak(self.config.get('wake_phrase', "How can I help you?"))
+            
+            # This is the critical part - make sure we're listening for commands
+            print("Listening for command...")
             self.listen_for_command()
+        except Exception as e:
+            print(f"Error handling wake word: {str(e)}")
+            self.gui.show_error(f"Error after wake word: {str(e)}")
         finally:
             self.is_processing = False
 
@@ -204,21 +268,47 @@ class VoiceEngine:
             self.gui.show_error(f"Sound error: {str(e)}")
 
     def listen_for_command(self):
-        r = sr.Recognizer()
-        with sr.Microphone() as source:
+        try:
+            print("Starting to listen for command...")
+            self.gui.update_ui_state(True)  # Update UI to show we're listening
+            
+            recognizer = sr.Recognizer()
+            with sr.Microphone() as source:
+                print("Adjusting for ambient noise...")
+                recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                print("Listening...")
+                audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
+                
             try:
-                self.gui.update_ui_state(True)
-                r.adjust_for_ambient_noise(source, duration=0.5)
-                audio = r.listen(source, timeout=8, phrase_time_limit=15)
-                command = self.recognize_audio(audio)
-                if command and self.command_handler:
-                    self.command_handler.process_command(command)
-            except sr.WaitTimeoutError:
-                self.gui.show_error("Listening timed out")
-            except Exception as e:
-                self.gui.show_error(f"Recognition error: {str(e)}")
-            finally:
-                self.gui.update_ui_state(False)
+                print("Recognizing speech...")
+                command = recognizer.recognize_google(audio)
+                print(f"Recognized: {command}")
+                
+                if self.command_handler:
+                    print(f"Processing command: {command}")
+                    response = self.command_handler.process_command(command)
+                    print(f"Command response: {response}")
+                    
+                    # Make sure the response is displayed in the GUI only once
+                    self.gui.show_response(response)
+                    
+                    # Speak the response if voice response is enabled
+                    if self.config.get('voice_response', True):
+                        self.speak(response)
+                else:
+                    print("Command handler not available")
+                    self.gui.show_error("Command handler not available")
+            except sr.UnknownValueError:
+                print("Could not understand audio")
+                self.gui.show_error("Sorry, I didn't catch that.")
+            except sr.RequestError as e:
+                print(f"Speech recognition error: {e}")
+                self.gui.show_error(f"Speech recognition error: {e}")
+        except Exception as e:
+            print(f"Error in listen_for_command: {str(e)}")
+            self.gui.show_error(f"Error listening for command: {str(e)}")
+        finally:
+            self.gui.update_ui_state(False)  # Update UI to show we're done listening
 
     def recognize_audio(self, audio):
         try:

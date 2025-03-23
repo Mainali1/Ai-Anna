@@ -49,7 +49,33 @@ class WeatherService:
             return f"I'm sorry, I couldn't fetch the weather information. {str(e)}"
 
     def _get_offline_weather(self, city):
-        return f"I'm currently in offline mode and cannot fetch real weather data for {city}. Please check your internet connection and ensure the WEATHER_API_KEY is set in your environment variables."
+        # Provide a simulated response when in offline mode
+        from datetime import datetime
+        current_hour = datetime.now().hour
+        
+        # Simulate different weather conditions based on time of day
+        if 5 <= current_hour < 12:
+            temp = 18
+            desc = "partly cloudy"
+        elif 12 <= current_hour < 17:
+            temp = 23
+            desc = "mostly sunny"
+        else:
+            temp = 16
+            desc = "clear"
+            
+        # Make sure city is not None
+        city = city or self.default_city
+            
+        response = f"Since I'm in offline mode, I'll give you a simulated weather report for {city}. "
+        response += f"It's currently {desc} with an approximate temperature of {temp}°C. "
+        
+        if temp < 20:
+            response += "You might want to bring a light jacket."
+        else:
+            response += "It's quite pleasant outside."
+            
+        return response
 
     def get_daily_forecast(self, city=None):
         if self.offline_mode:

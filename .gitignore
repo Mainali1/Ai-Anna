@@ -1,5 +1,7 @@
 assistant/__pycache__
 assistant/commands/__pycache__
+logs
+backups
 conversations
 .env
 assistant/resources/wake_word.ppn

@@ -2,12 +2,30 @@
   "offline_mode": false,
   "voice_response": true,
   "beep_sound": true,
-  "wake_phrase": "Ready For Task",
+  "wake_phrase": "Anna ready",
   "music_path": "~/Music",
   "speech_rate": 150,
   "voice_gender": "female",
   "speech_volume": 0.9,
   "wake_word_sensitivity": 0.7,
+  "auto_startup": true,
+  "auto_greeting": true,
+  "voice_toggles": {
+    "music_commands": true,
+    "weather_commands": true,
+    "web_search": true,
+    "wikipedia": true,
+    "email": true,
+    "study_tools": true,
+    "system_controls": true,
+    "conversation": true
+  },
+  "animation_settings": {
+    "enabled": true,
+    "style": "siri",
+    "color": "#FF0000",
+    "speed": 5
+  },
   "ai_service": {
     "preferred_provider": "huggingface",
     "openai": {
@@ -17,5 +35,6 @@
       "model": "gpt2"
     },
     "command_flexibility": "high"
-  }
+  },
+  "secret_key": "your-secure-secret-key-2024"
 }

@@ -1,10 +1,13 @@
 import logging
 import os
+import random
 from datetime import datetime
 from typing import Dict, Any, Optional
 from .commands import CommandRegistry
-from .commands.music_command import MusicCommand
+from .commands.music_command import MediaCommand  # Changed from MusicCommand
 from .commands.weather_command import WeatherCommand
+from .commands.web_search_command import WebSearchCommand
+from .commands.wikipedia_command import WikipediaCommand
 from .weather_service import WeatherService
 from .system_controller import SystemController
 from .conversation_storage import ConversationStorage
@@ -12,6 +15,14 @@ from .screen_analyzer import ScreenAnalyzer
 
 class CommandHandler:
     def __init__(self, gui, voice_engine, study_manager, music_controller, email_manager, config, spaced_repetition, ai_service, file_system, external_services):
+        # Setup logging first
+        import logging
+        from datetime import datetime
+        import random
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+
+        # Initialize core services
         self.external_services = external_services
         self.ai_service = ai_service
         self.file_system = file_system
@@ -29,24 +40,27 @@ class CommandHandler:
         self.is_listening = False
         self.ai_mode = False
         
+        # Get enhanced context manager and dynamic response generator if available
+        self.enhanced_context = None
+        self.dynamic_response = None
+        if hasattr(gui, 'container') and gui.container:
+            try:
+                self.enhanced_context = gui.container.get_service('enhanced_context')
+                self.dynamic_response = gui.container.get_service('dynamic_response')
+            except KeyError:
+                pass
+
         # Initialize command registry
         self.command_registry = CommandRegistry()
         self._register_commands()
         
-        # Initialize conversation context
-        self.conversation_context = {
-            'last_topic': None,
-            'follow_up_needed': False,
-            'user_name': None,
-            'mood': 'neutral'
-        }
-        
         # Initialize last command time
         self.last_command_time = None
         
-        # Setup logging
-        logging.basicConfig(level=logging.INFO)
-        self.logger = logging.getLogger(__name__)
+        # Auto-greeting if enabled
+        if self.config.get('auto_greeting', True) and self.enhanced_context:
+            self._auto_greeting()
+            
         self.app_map = {
             'music player': 'spotify',
             'email client': 'thunderbird',
@@ -130,10 +144,50 @@ class CommandHandler:
 
     def _register_commands(self):
         """Register all available commands"""
-        self.command_registry.register('music', MusicCommand)
-        self.command_registry.register('weather', WeatherCommand)
-        self.command_registry.register('time', WeatherCommand)  # Temporarily handle time queries
-        # Remove WeatherCommand as default fallback for conversation
+        try:
+            # Import all command classes
+            from .commands.music_command import MediaCommand
+            from .commands.weather_command import WeatherCommand
+            from .commands.web_search_command import WebSearchCommand
+            from .commands.wikipedia_command import WikipediaCommand
+            from .commands.time_command import TimeCommand
+            from .commands.system_command import SystemCommand
+            from .commands.help_command import HelpCommand
+            from .commands.youtube_command import YouTubeCommand  # Add this line
+            
+            # Register core commands with proper error handling
+            commands_to_register = [
+                ('media', MediaCommand),
+                ('weather', WeatherCommand),
+                ('time', TimeCommand),
+                ('web_search', WebSearchCommand),
+                ('wikipedia', WikipediaCommand),
+                ('system', SystemCommand),
+                ('help', HelpCommand),
+                ('youtube', YouTubeCommand)  # Add this line
+            ]
+            
+            for intent, command_class in commands_to_register:
+                try:
+                    self.command_registry.register(intent, command_class)
+                    self.logger.info(f"Successfully registered {intent} command")
+                except Exception as e:
+                    self.logger.error(f"Failed to register {intent} command: {str(e)}")
+                    
+            # Initialize command instances to verify they work
+            for intent, command_class in self.command_registry.get_all_commands().items():
+                try:
+                    command_instance = command_class(self)
+                    self.logger.info(f"Successfully initialized {intent} command")
+                except Exception as e:
+                    self.logger.error(f"Failed to initialize {intent} command: {str(e)}")
+                    # Remove failed command from registry
+                    self.command_registry._commands.pop(intent, None)
+        except Exception as e:
+            self.logger.error(f"Error in command registration: {str(e)}")
+            # Don't raise error, just log it
+            self.logger.warning("Continuing with partial command registration")
+
     
     def determine_intent(self, command: str) -> str:
         """Determine the intent of the command"""
@@ -153,26 +207,15 @@ class CommandHandler:
         intent = self.determine_intent(command)
         
         # Update conversation context
-        self.conversation_context['last_topic'] = intent
-        
-        # Add mood-based response
-        mood_response = self.update_mood(command)
-        if mood_response:
-            response = mood_response + " "
-        
-        # Add contextual acknowledgment
-        if intent == self.conversation_context.get('last_topic'):
-            response += "I see you're still interested in " + intent + ". "
-        else:
+        if intent != self.conversation_context.get('last_topic'):
+            self.conversation_context['last_topic'] = intent
             response += random.choice(self.casual_acknowledgments) + " "
         
         # Add follow-up suggestions based on intent
-        if intent == 'study':
-            self.conversation_context['follow_up_needed'] = True
-            if 'timer' not in command:
-                response += "Would you like me to set a study timer? "
-        elif intent == 'music':
-            if 'play' in command and not any(genre in command for genre in ['study', 'focus', 'ambient']):
+        if intent == 'study' and 'timer' not in command:
+            response += "Would you like me to set a study timer? "
+        elif intent == 'music' and 'play' in command:
+            if not any(genre in command for genre in ['study', 'focus', 'ambient']):
                 response += "I can suggest some focus-friendly music if you're studying. "
         elif intent == 'weather':
             response += "Would you like to know the forecast for the rest of the day? "
@@ -188,60 +231,98 @@ class CommandHandler:
             self.logger.info(f"Processing command: {command}")
             command = command.lower()
             
-            # Update last command time and check for greeting
-            current_time = datetime.now()
-            response = self._handle_time_based_greeting(current_time)
+            # Initialize response variable
+            response = ""
+            
+            # Update enhanced context if available
+            if self.enhanced_context:
+                self.enhanced_context.update_context(command, "")
             
             # Determine intent and get command handler
             intent = self.determine_intent(command)
             command_class = self.command_registry.get_command(intent)
             
             if command_class:
-                # Execute command through command pattern
-                command_instance = command_class(self)
-                command_response = command_instance.execute(command)
-                response += command_response
+                try:
+                    # Execute command through command pattern
+                    command_instance = command_class(self)
+                    if command_instance.validate(command):
+                        command_response = command_instance.execute(command)
+                        if command_response:
+                            # Return the response but don't display it here
+                            # The display will be handled by the caller
+                            return command_response
+                        else:
+                            return "I processed your command but didn't get a response. Please try again."
+                    else:
+                        return "I'm not sure how to handle that command."
+                except Exception as e:
+                    self.logger.error(f"Error executing command {intent}: {str(e)}")
+                    return f"Sorry, I encountered an error: {str(e)}"
             else:
                 # Handle specific commands based on intent
-                if intent == 'task':
-                    if 'timer' in command:
-                        response += self.handle_study_timer(command)
-                    elif 'reminder' in command:
-                        response += self.handle_reminder(command)
-                    elif 'schedule' in command:
-                        response += self.handle_schedule(command)
-                elif intent == 'study':
-                    if 'flashcard' in command:
-                        response += self.handle_flashcards(command)
-                    elif 'assignment' in command:
-                        response += self.handle_assignments(command)
-                elif intent == 'music':
-                    response += self.control_music(command)
-                elif intent == 'weather':
-                    response += self.get_weather(command)
-                elif intent == 'app':
-                    response += self.launch_application(command)
-                elif intent == 'search':
-                    response += self.web_search(command)
-                elif intent == 'conversation':
-                    if self.conversation_context['last_topic']:
-                        response += self.handle_follow_up(command)
-                    else:
-                        response += self._handle_general_conversation(command)
-                
-                # Handle study-related follow-up
-                if 'study' in self.conversation_context['last_topic']:
-                    response += "\nI can help you find some focus-friendly music if you'd like."
-                
-                # Add application opening command handling
-                elif any(app_name in command for app_name in self.app_map.keys()) or "open" in command:
-                    response += self.open_application(command)
-                
-                # Update conversation context
-                if "study" in command or "assignment" in command or "flashcard" in command:
-                    self.conversation_context['last_topic'] = 'study'
-                elif "music" in command or "play" in command:
-                    self.conversation_context['last_topic'] = 'entertainment'
+                try:
+                    if intent == 'task':
+                        if 'timer' in command:
+                            timer_response = self.handle_study_timer(command)
+                            response += timer_response if timer_response else ""
+                        elif 'reminder' in command:
+                            reminder_response = self.handle_reminder(command)
+                            response += reminder_response if reminder_response else ""
+                        elif 'schedule' in command:
+                            schedule_response = self.handle_schedule(command)
+                            response += schedule_response if schedule_response else ""
+                    elif intent == 'study':
+                        if 'flashcard' in command:
+                            response += self.handle_flashcards(command)
+                        elif 'assignment' in command:
+                            response += self.handle_assignments(command)
+                    elif intent == 'music':
+                        response += self.control_music(command)
+                    elif intent == 'weather':
+                        if hasattr(self, 'weather_service'):
+                            if 'forecast' in command:
+                                response += self.weather_service.get_daily_forecast()
+                            else:
+                                response += self.weather_service.get_current_weather()
+                        else:
+                            response += "I'm sorry, the weather service is not properly configured."
+                    elif intent == 'app':
+                        response += self.launch_application(command)
+                    elif intent == 'search':
+                        if hasattr(self, 'external_services'):
+                            search_query = command.lower().replace('search', '').replace('web', '').strip()
+                            search_results = self.external_services.web_search(search_query)
+                            if search_results:
+                                response += "Here's what I found:\n\n"
+                                for result in search_results[:3]:
+                                    response += f"- {result['title']}\n  {result['snippet']}\n  {result['link']}\n\n"
+                            else:
+                                response += "I couldn't find any results for that search."
+                        else:
+                            response += "I'm sorry, the search service is not properly configured."
+                    elif intent == 'conversation':
+                        if self.conversation_context['last_topic']:
+                            response += self.handle_follow_up(command)
+                        else:
+                            response += self._handle_general_conversation(command)
+                    
+                    # Handle study-related follow-up
+                    if 'study' in self.conversation_context['last_topic']:
+                        response += "\nI can help you find some focus-friendly music if you'd like."
+                    
+                    # Add application opening command handling
+                    elif any(app_name in command for app_name in self.app_map.keys()) or "open" in command:
+                        response += self.open_application(command)
+                except Exception as e:
+                    self.logger.error(f"Error handling command: {str(e)}")
+                    response += f"Sorry, I couldn't process that command: {str(e)}"
+            
+            # Update conversation context
+            if "study" in command or "assignment" in command or "flashcard" in command:
+                self.conversation_context['last_topic'] = 'study'
+            elif "music" in command or "play" in command:
+                self.conversation_context['last_topic'] = 'entertainment'
             
             # Store conversation history
             self.conversation_storage.store_interaction(command, response)
@@ -254,6 +335,10 @@ class CommandHandler:
                 'last_topic': self.conversation_context['last_topic']
             }
             self.conversation_storage.add_interaction(command, response, context)
+            
+            # Update enhanced context with the response
+            if self.enhanced_context:
+                self.enhanced_context.update_context(command, response)
             
             if hasattr(self, 'gui'):
                 self.gui.display_response(response)
@@ -301,6 +386,20 @@ class CommandHandler:
 
     def _handle_time_based_greeting(self, current_time: datetime) -> str:
         """Handle time-based greetings"""
+        
+    def _auto_greeting(self):
+        """Automatically greet the user when the application starts"""
+        if not self.enhanced_context:
+            return
+            
+        if self.enhanced_context.should_greet_user():
+            greeting = self.enhanced_context.generate_greeting()
+            self.gui.show_response(greeting)
+            if self.config.get('voice_response', True):
+                self.voice_engine.speak(greeting)
+        
+        # Initialize current_time before using it
+        current_time = datetime.now()
         if self.last_command_time is None or (current_time - self.last_command_time).seconds > 300:
             self.last_command_time = current_time
             hour = current_time.hour
@@ -450,215 +549,134 @@ class CommandHandler:
         ]
         return random.choice(responses)
 
+    # Add this to the control_music method
     def control_music(self, command):
+        """Handle music control commands"""
         try:
-            if "play" in command:
-                if "study" in command:
-                    return self.music_controller.play_study_music()
-                elif "relax" in command:
-                    return self.music_controller.play_relaxing_music()
+            # Check for YouTube commands first
+            if "youtube" in command.lower():
+                query = command.lower().replace("play youtube", "").replace("youtube", "").strip()
+                if query:
+                    success, message = self.music_controller.play_youtube(query)
+                    return message
                 else:
-                    return self.music_controller.play_music()
-            elif "stop" in command or "pause" in command:
-                return self.music_controller.stop_music()
-            elif "next" in command:
-                return self.music_controller.next_track()
-            elif "previous" in command:
-                return self.music_controller.previous_track()
-            return "I'm not sure what you want me to do with the music. Try saying play, stop, next, or previous."
-        except Exception as e:
-            return f"I couldn't control the music: {str(e)}"
-
-    def open_application(self, command):
-        try:
-            app_name = next((name for name in self.app_map.keys() if name in command), None)
-            if app_name:
-                app = self.app_map[app_name]
-                if os.path.exists(app):
-                    subprocess.Popen([app], shell=True)
-                else:
-                    subprocess.Popen(app, shell=True)
-                return f"Opening {app_name}..."
-            return "I'm not sure which application you want to open."
-        except Exception as e:
-            return f"I couldn't open that application: {str(e)}"
-    def register_custom_app(self, name, path):
-        """Register a custom application or file path"""
-        if os.path.exists(path):
-            self.custom_apps[name.lower()] = path
-            return f"Registered {name} successfully"
-        return f"Path not found: {path}"
-
-    def open_application(self, command):
-        command = command.lower()
-        
-        # Handle web URLs first
-        if any(prefix in command for prefix in ['http://', 'https://', 'www.']):
-            url = command.replace('open', '').strip()
-            if not url.startswith(('http://', 'https://')):
-                url = 'https://' + url
-            webbrowser.open(url)
-            return f"Opening {url}"
-
-        # Handle web shortcuts
-        web_shortcuts = {
-            'google': 'https://www.google.com',
-            'youtube': 'https://www.youtube.com',
-            'github': 'https://www.github.com',
-            'gmail': 'https://mail.google.com',
-            'maps': 'https://www.google.com/maps',
-            'drive': 'https://drive.google.com',
-            'calendar': 'https://calendar.google.com'
-        }
-
-        for shortcut, url in web_shortcuts.items():
-            if shortcut in command:
-                webbrowser.open(url)
-                return f"Opening {shortcut}"
-
-        # First check custom apps
-        for app_name, path in self.custom_apps.items():
-            if app_name in command:
-                try:
-                    if sys.platform == "win32":
-                        os.startfile(path)
+                    return "Please specify what you want to play on YouTube."
+                
+            # Make sure music controller is initialized
+            if not hasattr(self, 'music_controller') or not self.music_controller:
+                print("Media controller not initialized")
+                return "Media controller is not available."
+                
+            # Make sure music path is set
+            if not hasattr(self.music_controller, 'music_path') or not self.music_controller.music_path:
+                self.music_controller.set_music_path()
+                
+            # Process media commands
+            if "play" in command.lower():
+                # Check for specific media or artist
+                if "by" in command.lower():
+                    artist = command.split("by")[-1].strip()
+                    if self.music_controller.play_by_artist(artist):
+                        return f"Playing media by {artist}."
                     else:
-                        subprocess.run([path])
-                    return f"Opening {app_name}"
-                except Exception as e:
-                    return f"Error opening {app_name}: {str(e)}"
-
-        # Then check default apps
-        for app_name, exe in self.app_map.items():
-            if app_name in command:
-                try:
-                    # Handle directory paths
-                    if os.path.isdir(exe):
-                        if sys.platform == "win32":
-                            os.startfile(exe)
+                        return f"Couldn't find media by {artist}."
+                elif "playlist" in command.lower():
+                    playlist = command.replace('play playlist', '').strip()
+                    if self.music_controller.play_playlist(playlist):
+                        return f"Playing playlist: {playlist}."
+                    else:
+                        return f"Couldn't find playlist: {playlist}."
+                else:
+                    # Extract media name if present
+                    media_name = command.replace('play', '').strip()
+                    if media_name:
+                        if self.music_controller.play_media(media_name):
+                            return f"Playing {media_name}."
                         else:
-                            subprocess.run(['xdg-open', exe])
-                        return f"Opening {app_name}"
-
-                    # Additional search paths for Windows
-                    search_paths = [
-                        os.environ.get('ProgramFiles', ''),
-                        os.environ.get('ProgramFiles(x86)', ''),
-                        os.environ.get('LocalAppData', ''),
-                        os.environ.get('AppData', ''),
-                        os.path.join(os.environ.get('LocalAppData', ''), 'Programs'),
-                        os.path.join(os.environ.get('AppData', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs')
-                    ]
-                    
-                    # Search for the executable
-                    for search_path in search_paths:
-                        if not search_path:
-                            continue
-                            
-                        # Direct path check
-                        direct_path = os.path.join(search_path, f"{exe}.exe")
-                        if os.path.exists(direct_path):
-                            if sys.platform == "win32":
-                                os.startfile(direct_path)
-                            else:
-                                subprocess.run([direct_path])
-                            return f"Opening {app_name}"
-                        
-                        # Recursive search
-                        for root, dirs, files in os.walk(search_path):
-                            if f"{exe}.exe" in files:
-                                full_path = os.path.join(root, f"{exe}.exe")
-                                if sys.platform == "win32":
-                                    os.startfile(full_path)
-                                else:
-                                    subprocess.run([full_path])
-                                return f"Opening {app_name}"
-                    
-                    # Fallback to simple command
-                    if sys.platform == "win32":
-                        try:
-                            subprocess.run([exe], shell=True)
-                            return f"Opening {app_name}"
-                        except Exception:
-                            os.system(f"start {exe}")
-                            return f"Opening {app_name}"
+                            return f"Couldn't find {media_name}."
                     else:
-                        subprocess.run([exe])
-                        return f"Opening {app_name}"
-                except Exception as e:
-                    return f"Error opening {app_name}: {str(e)}"
-
-        # If no application found, try to open as a file path
-        try:
-            path = command.replace("open", "").strip()
-            if os.path.exists(path):
-                if sys.platform == "win32":
-                    os.startfile(path)
+                        # General play command
+                        self.music_controller.play()
+                        return "Playing media."
+            elif "pause" in command.lower() or "stop" in command.lower():
+                self.music_controller.pause()
+                return "Media paused."
+            elif "resume" in command.lower():
+                self.music_controller.resume()
+                return "Resuming media."
+            elif "next" in command.lower():
+                self.music_controller.next_track()
+                return "Playing next track."
+            elif "previous" in command.lower() or "prev" in command.lower():
+                self.music_controller.previous_track()
+                return "Playing previous track."
+            elif "volume" in command.lower():
+                if "up" in command.lower():
+                    self.music_controller.volume_up()
+                    return "Volume increased."
+                elif "down" in command.lower():
+                    self.music_controller.volume_down()
+                    return "Volume decreased."
                 else:
-                    subprocess.run(['xdg-open', path])
-                return f"Opened {path}"
+                    try:
+                        level = int(command.split("volume")[-1].strip())
+                        self.music_controller.set_volume(level)
+                        return f"Volume set to {level}%."
+                    except ValueError:
+                        return "Please specify a volume level (0-100)."
+            return "Media command not recognized."
         except Exception as e:
-            return f"Error opening file: {str(e)}"
+            self.logger.error(f"Error in music control: {str(e)}")
+            return f"Sorry, I couldn't control the media: {str(e)}"
 
-        return "Application or file not found"
-
-    # Media Methods
-    def control_music(self, command):
-        if "play" in command:
-            self.music_controller.toggle_playback()
-            return "Music started" if self.music_controller.is_playing() else "Music resumed"
-        elif "pause" in command:
-            self.music_controller.toggle_playback()
-            return "Music paused"
-        elif "next" in command:
-            self.music_controller.next_track()
-            return "Next track"
-        return "Music command not recognized"
-
-    # Research Methods
-    def search_wikipedia(self, command):
-        query = command.replace("wikipedia", "").strip()
-        return self.external_services.search_wikipedia(query, sentences=2)
-
-    def search_duckduckgo(self, command):
-        query = command.replace("search web for", "").strip()
-        webbrowser.open(f"https://duckduckgo.com/?q={quote(query)}")
-        return f"Searching for {query}"
-
-    # File Methods
-    def open_file(self, command):
-        path = command.replace("open file", "").strip()
-        if os.path.exists(path):
+    def launch_application(self, command):
+        """Launch applications based on command"""
+        try:
+            command = command.lower()
+            # Extract app name from command
+            app_name = None
+            for key in self.app_map.keys():
+                if key in command:
+                    app_name = self.app_map[key]
+                    break
+            
+            if not app_name:
+                return "I'm not sure which application you want to open."
+            
+            # Launch the application
             try:
-                if sys.platform == "win32":
-                    os.startfile(path)
-                else:
-                    subprocess.run(['xdg-open', path])
-                return f"Opened {path}"
+                os.startfile(app_name)
+                return f"Opening {app_name}."
             except Exception as e:
-                return f"Open error: {str(e)}"
-        return "File not found"
+                self.logger.error(f"Error launching application {app_name}: {str(e)}")
+                return f"Sorry, I couldn't open {app_name}."
+                
+        except Exception as e:
+            self.logger.error(f"Error in launch_application: {str(e)}")
+            return f"Sorry, I couldn't process that command: {str(e)}"
 
-    # Email Methods
-    def handle_email(self, command):
-        if "check" in command:
-            count = self.email_manager.check_email()
-            return f"You have {count} unread emails"
-        elif "send" in command:
-            return "Email sending not implemented"
-        return "Email command not recognized"
-
-    # Help Methods
-    def show_help(self):
-        return """Available Commands:
-        - Start [X] minute study timer
-        - Add flashcard [Front]: [Back]
-        - Add assignment [Task] due [Date]
-        - "What's on schedule today?"
-        - Open [application]
-        - Play/Pause music
-        - Wikipedia [topic]
-        - Search web for [query]
-        - Open file [path]
-        - Check email
-        """
+    def open_application(self, command):
+        """Open applications or folders based on command"""
+        try:
+            command = command.lower()
+            # Check if it's a folder path
+            for key, path in self.app_map.items():
+                if key in command and os.path.isdir(path):
+                    os.startfile(path)
+                    return f"Opening {key} folder."
+                    
+            # Check if it's an application
+            for key, app in self.app_map.items():
+                if key in command:
+                    try:
+                        os.startfile(app)
+                        return f"Opening {key}."
+                    except Exception as e:
+                        self.logger.error(f"Error opening {key}: {str(e)}")
+                        return f"Sorry, I couldn't open {key}."
+                        
+            return "I'm not sure what you want me to open."
+            
+        except Exception as e:
+            self.logger.error(f"Error in open_application: {str(e)}")
+            return f"Sorry, I couldn't process that command: {str(e)}"
