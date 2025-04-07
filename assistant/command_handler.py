@@ -193,6 +193,12 @@ class CommandHandler:
         """Determine the intent of the command"""
         command = command.lower()
         
+        # Direct intent mapping for common commands
+        if 'time' in command or 'date' in command:
+            return 'time'
+        if 'weather' in command or 'temperature' in command or 'forecast' in command:
+            return 'weather'
+        
         # Check each registered command's validation
         for intent, command_class in self.command_registry.get_all_commands().items():
             command_instance = command_class(self)

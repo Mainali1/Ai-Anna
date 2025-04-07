@@ -91,72 +91,107 @@ class AssistantGUI:
         self.animation_points = []
         self.animation_angle = 0
         self.is_animating = False
-        self.update_siri_animation()
+        self.update_animation()
         
     def draw_ai_mode_icon(self, is_active):
         self.ai_mode_icon.delete('all')
         color = 'green' if is_active else 'red'
         self.ai_mode_icon.create_oval(2, 2, 14, 14, fill=color, outline=color)
         
-    def update_siri_animation(self):
+    def create_animation_canvas(self):
+        """Create the animation canvas for voice visualization"""
+        self.animation_frame = ttk.Frame(self.main_frame)
+        self.animation_frame.pack(side=tk.BOTTOM, pady=10)
+        
+        self.animation_canvas = tk.Canvas(self.animation_frame, width=60, height=60, 
+                                         bg='white', highlightthickness=0)
+        self.animation_canvas.pack()
+        
+        # Initialize animation variables
+        self.animation_angle = 0
+        self.is_animating = False
+        self.animation_id = None
+
+    def update_animation(self):
+        """Update the voice animation"""
         if not self.is_animating:
             return
             
+        # Clear canvas
         self.animation_canvas.delete('all')
-        center_x = 30
-        center_y = 30
+        
+        # Animation parameters
+        center_x, center_y = 30, 30
         radius = 20
         num_points = 12
         
-        # Get animation settings from config
-        animation_settings = self.config.get('animation_settings', {})
-        color_base = animation_settings.get('color', '#FF0000')
-        speed = animation_settings.get('speed', 5)
+        # Get animation color from config
+        color = self.config.get('animation_settings', {}).get('color', '#007BFF')
         
-        # Extract RGB components from the color
-        if color_base.startswith('#') and len(color_base) == 7:
-            try:
-                r = int(color_base[1:3], 16)
-                g = int(color_base[3:5], 16)
-                b = int(color_base[5:7], 16)
-            except ValueError:
-                r, g, b = 255, 0, 0  # Default to red if parsing fails
-        else:
-            r, g, b = 255, 0, 0  # Default to red
-        
+        # Draw animation points
         for i in range(num_points):
             angle = self.animation_angle + (i * (360 / num_points))
+            # Calculate position with sine wave effect
             x = center_x + radius * math.cos(math.radians(angle))
             y = center_y + radius * math.sin(math.radians(angle))
-            size = 3 + 2 * math.sin(math.radians(angle - self.animation_angle))
             
-            # Create dynamic color based on angle and base color
-            intensity = int(128 + 127 * math.sin(math.radians(angle - self.animation_angle)))
-            r_adj = min(255, int(r * intensity / 255))
-            g_adj = min(255, int(g * intensity / 255))
-            b_adj = min(255, int(b * intensity / 255))
-            color = f'#{r_adj:02x}{g_adj:02x}{b_adj:02x}'
+            # Size varies with sine wave
+            size = 3 + 2 * math.sin(math.radians(self.animation_angle + i * 30))
             
-            self.animation_canvas.create_oval(x-size, y-size, x+size, y+size, fill=color, outline=color)
+            # Color intensity varies with position
+            intensity = 0.5 + 0.5 * math.sin(math.radians(angle - self.animation_angle))
+            r, g, b = self.hex_to_rgb(color)
+            adjusted_color = self.rgb_to_hex(
+                int(r * intensity), 
+                int(g * intensity), 
+                int(b * intensity)
+            )
+            
+            # Draw circle
+            self.animation_canvas.create_oval(
+                x-size, y-size, x+size, y+size, 
+                fill=adjusted_color, outline=adjusted_color
+            )
         
-        self.animation_angle = (self.animation_angle + speed) % 360
-        self.animation_canvas.after(50, self.update_siri_animation)
+        # Update angle for next frame
+        self.animation_angle = (self.animation_angle + 5) % 360
         
-    def start_siri_animation(self):
-        self.is_animating = True
-        self.update_siri_animation()
-        
-    def stop_siri_animation(self):
+        # Schedule next update
+        self.animation_id = self.animation_canvas.after(50, self.update_animation)
+
+    def hex_to_rgb(self, hex_color):
+        """Convert hex color to RGB values"""
+        hex_color = hex_color.lstrip('#')
+        return int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+
+    def rgb_to_hex(self, r, g, b):
+        """Convert RGB values to hex color"""
+        return f'#{r:02x}{g:02x}{b:02x}'
+
+    def start_animation(self):
+        """Start the voice animation"""
+        if not self.is_animating:
+            self.is_animating = True
+            self.update_animation()
+
+    def stop_animation(self):
+        """Stop the voice animation"""
         self.is_animating = False
+        if self.animation_id:
+            self.animation_canvas.after_cancel(self.animation_id)
+            self.animation_id = None
         self.animation_canvas.delete('all')
-        
+
     def update_ui_state(self, is_listening):
+        """Update UI state based on listening status"""
         if is_listening:
-            self.start_siri_animation()
-            self.start_processing_animation("Listening")
+            self.start_animation()
+            self.status_bar.config(text="Listening...")
         else:
-            self.stop_siri_animation()
-            self.stop_processing_animation()
+            self.stop_animation()
+            self.status_bar.config(text="Ready")
+        
+            self.stop_animation()
             self.status_bar.config(text="Ready")
     
     def update_ai_mode(self, is_active):
@@ -207,6 +242,7 @@ class AssistantGUI:
                 
             # Now we're on the main thread, update the UI
             self.response_text.config(state=tk.NORMAL)
+            self.response_text.delete(1.0, tk.END)  # Clear existing text
             self.response_text.insert(tk.END, f"[Anna]: {text}\n\n")
             self.response_text.see(tk.END)
             self.response_text.config(state=tk.DISABLED)

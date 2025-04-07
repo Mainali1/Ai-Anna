@@ -242,6 +242,10 @@ class VoiceEngine:
         self.is_processing = True
         try:
             print("Wake word detected! Processing...")
+            # Update GUI to show we're listening
+            if hasattr(self.gui, 'update_ui_state'):
+                self.gui.update_ui_state(True)
+                
             if self.config.get('beep_sound', True):
                 self.play_notification_sound()
             if self.config.get('voice_response', True):
@@ -255,6 +259,9 @@ class VoiceEngine:
             self.gui.show_error(f"Error after wake word: {str(e)}")
         finally:
             self.is_processing = False
+            # Update GUI to show we're done listening
+            if hasattr(self.gui, 'update_ui_state'):
+                self.gui.update_ui_state(False)
 
     def play_notification_sound(self):
         try:

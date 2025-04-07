@@ -9,8 +9,16 @@ import glob
 import pyautogui
 
 class MediaController:
-    def __init__(self):
-        pygame.mixer.init()
+    def __init__(self, config=None):
+        """
+        Initialize the MediaController with configuration.
+        
+        Args:
+            config: Configuration manager instance
+        """
+        self.config = config
+        self.music_path = None
+        self.current_player = None
         self.playlist = []
         self.current_track = 0
         self.paused = False
@@ -202,7 +210,22 @@ class MediaController:
         return len(self.playlist) > 0
     
     def play_media(self, media_name):
-        """Play a specific media file by name"""
+        """Play media by name"""
+        try:
+            # Find matching files
+            matches = self.find_media_files(media_name)
+            if not matches:
+                return False
+                
+            # Load and play the first match
+            pygame.mixer.music.load(matches[0])
+            pygame.mixer.music.play()
+            self.current_track = 0
+            self.playlist = matches
+            return True
+        except Exception as e:
+            print(f"Error playing media: {str(e)}")
+            return False
         if self.music_path is None:
             self.set_music_path()
             

@@ -1,13 +1,35 @@
 {
+  "ai_services": {
+    "preferred_provider": "huggingface",
+    "openai": {
+      "model": "gpt-3.5-turbo"
+    },
+    "huggingface": {
+      "model": "gpt2"
+    },
+    "command_flexibility": "high"
+  },
+  "study": {
+    "enabled": true,
+    "style": "siri",
+    "color": "#FF0000",
+    "speed": 5
+  },
+  "security": {
+    "enabled": true,
+    "style": "siri",
+    "color": "#FF0000",
+    "speed": 5
+  },
   "offline_mode": false,
   "voice_response": true,
   "beep_sound": true,
-  "wake_phrase": "Anna ready",
-  "music_path": "~/Music",
+  "wake_phrase": "hey anna",
+  "music_path": "path/to/music",
   "speech_rate": 150,
   "voice_gender": "female",
-  "speech_volume": 0.9,
-  "wake_word_sensitivity": 0.7,
+  "speech_volume": 1.0,
+  "wake_word_sensitivity": 0.5,
   "auto_startup": true,
   "auto_greeting": true,
   "voice_toggles": {
@@ -26,15 +48,23 @@
     "color": "#FF0000",
     "speed": 5
   },
-  "ai_service": {
-    "preferred_provider": "huggingface",
-    "openai": {
-      "model": "gpt-3.5-turbo"
-    },
-    "huggingface": {
-      "model": "gpt2"
-    },
-    "command_flexibility": "high"
+  "ai_service": "openai",
+  "secret_key": "your-secret-key",
+  
+  "voice_settings": {
+    "engine": "pyttsx3",
+    "language": "en-US",
+    "pitch": 1.0
   },
-  "secret_key": "your-secure-secret-key-2024"
+  "gui_settings": {
+    "theme": "dark",
+    "font_size": 12,
+    "window_size": [800, 600],
+    "fullscreen": false
+  },
+  "media_paths": {
+    "images": "d:/Projects/Ai-Anna/assets/images",
+    "sounds": "d:/Projects/Ai-Anna/assets/sounds",
+    "videos": "d:/Projects/Ai-Anna/assets/videos"
+  }
 }

@@ -7,9 +7,9 @@ from datetime import datetime
 class WeatherCommand(Command):
     def __init__(self, handler):
         super().__init__(handler)
-        self.api_key = os.getenv('OPENWEATHER_API_KEY', '')
+        self.api_key = os.getenv('WEATHER_API_KEY', '')
         if not self.api_key:
-            print("Warning: OPENWEATHER_API_KEY not found in environment variables")
+            print("Warning: WEATHER_API_KEY not found in environment variables")
             
     def validate(self, command: str) -> bool:
         return 'weather' in command.lower() or 'temperature' in command.lower() or 'forecast' in command.lower()

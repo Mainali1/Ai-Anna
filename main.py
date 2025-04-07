@@ -3,7 +3,7 @@ from assistant.voice_engine import VoiceEngine
 from assistant.command_handler import CommandHandler
 from assistant.study_manager import StudyManager
 from assistant.database import DatabaseHandler
-from assistant.music_controller import MediaController  # Changed from MusicController
+from assistant.music_controller import MediaController
 from assistant.email_manager import EmailManager
 from assistant.config_manager import ConfigManager
 from assistant.spaced_repetition import SpacedRepetitionSystem
@@ -36,6 +36,11 @@ def main():
         logger = container.get_service('logger')
         config = container.get_service('config')
         
+        # Validate critical configuration
+        if not validate_critical_config(config, logger):
+            logger.error("Critical configuration validation failed. Exiting application.")
+            return
+        
         # Initialize root window
         try:
             root = ThemedTk(theme="black")
@@ -45,68 +50,8 @@ def main():
 
         # Initialize core components with error handling
         try:
-            # Add more detailed logging for each component initialization
-            print("Initializing database handler...")
-            db_handler = DatabaseHandler()
-            container.register_service('db_handler', db_handler)
-            
-            # Initialize conversation storage first
-            print("Initializing conversation storage...")
-            from assistant.conversation_storage import ConversationStorage
-            conversation_storage = ConversationStorage()
-            container.register_service('conversation_storage', conversation_storage)
-            
-            # Then initialize the rest of the components
-            print("Initializing spaced repetition system...")
-            spaced_repetition = SpacedRepetitionSystem(db_handler)
-            container.register_service('spaced_repetition', spaced_repetition)
-            
-            print("Initializing study manager...")
-            study_manager = StudyManager(db_handler)
-            container.register_service('study_manager', study_manager)
-            
-            print("Initializing media controller...")
-            # Update the import statement
-            from assistant.music_controller import MediaController
-            media_controller = MediaController()
-            media_controller.config = config
-            container.register_service('music_controller', media_controller)
-            
-            # Fix how we set the config on the media controller
-            try:
-                # Pass the config object properly
-                media_controller.config = config
-                print("Setting media path...")
-                media_controller.set_music_path()
-            except Exception as e:
-                print(f"Error setting media path: {str(e)}")
-                # Continue without setting the media path
-            
-            print("Initializing email manager...")
-            email_manager = EmailManager()
-            container.register_service('email_manager', email_manager)
-            
-            print("Initializing AI service...")
-            ai_service = AIServiceHandler(config)
-            container.register_service('ai_service', ai_service)
-            
-            print("Initializing file system handler...")
-            file_system = FileSystemHandler()
-            container.register_service('file_system', file_system)
-            
-            print("Initializing external services...")
-            external_services = ExternalServices(config)
-            container.register_service('external_services', external_services)
-            
-            # Initialize conversation storage and enhanced context components
-            print("Initializing enhanced context manager...")
-            enhanced_context = EnhancedContextManager(conversation_storage)
-            container.register_service('enhanced_context', enhanced_context)
-            
-            # Initialize dynamic response generator
-            print("Initializing dynamic response generator...")
-            dynamic_response = DynamicResponseGenerator(conversation_storage, enhanced_context)
-            container.register_service('dynamic_response', dynamic_response)
+            # Initialize components using dependency injection pattern
+            initialize_core_components(container, config, logger)
             
         except Exception as e:
             import traceback
@@ -125,10 +70,21 @@ def main():
         
         # Initialize VoiceEngine and CommandHandler
         try:
+            # Get required services from container
+            db_handler = container.get_service('db_handler')
+            study_manager = container.get_service('study_manager')
+            media_controller = container.get_service('media_controller')
+            email_manager = container.get_service('email_manager')
+            spaced_repetition = container.get_service('spaced_repetition')
+            ai_service = container.get_service('ai_service')
+            file_system = container.get_service('file_system')
+            external_services = container.get_service('external_services')
+            
+            # Initialize voice engine with proper dependency injection
             voice_engine = VoiceEngine(gui, None, config)
             container.register_service('voice_engine', voice_engine)
             
-            # Update when passing to CommandHandler
+            # Initialize command handler with all dependencies
             command_handler = CommandHandler(
                 gui, 
                 voice_engine, 
@@ -146,7 +102,6 @@ def main():
             # Connect components
             voice_engine.command_handler = command_handler
             gui.command_handler = command_handler
-            media_controller.config = config
             
         except Exception as e:
             logger.error(f"Failed to initialize voice engine or command handler: {str(e)}")
@@ -160,7 +115,131 @@ def main():
         raise SystemExit(1)
 
 
+def validate_critical_config(config, logger):
+    """
+    Validates that all critical configuration settings are present.
+    Returns True if valid, False otherwise.
+    """
+    required_settings = [
+        'ai_service', 
+        'voice_settings', 
+        'gui_settings',
+        'media_paths'
+    ]
+    
+    missing_settings = []
+    
+    for setting in required_settings:
+        if not config.get(setting):
+            missing_settings.append(setting)
+    
+    if missing_settings:
+        logger.error(f"Missing critical configuration settings: {', '.join(missing_settings)}")
+        print(f"ERROR: Missing configuration: {', '.join(missing_settings)}")
+        return False
+    
+    return True
+
+
+def initialize_core_components(container, config, logger):
+    """
+    Initialize all core components with proper dependency injection.
+    All components are registered with the container.
+    """
+    # Database initialization
+    logger.info("Initializing database handler...")
+    print("Initializing database handler...")
+    db_handler = DatabaseHandler()
+    container.register_service('db_handler', db_handler)
+    
+    # Conversation storage initialization
+    logger.info("Initializing conversation storage...")
+    print("Initializing conversation storage...")
+    from assistant.conversation_storage import ConversationStorage
+    conversation_storage = ConversationStorage()
+    container.register_service('conversation_storage', conversation_storage)
+    
+    # Spaced repetition system
+    logger.info("Initializing spaced repetition system...")
+    print("Initializing spaced repetition system...")
+    spaced_repetition = SpacedRepetitionSystem(db_handler)
+    container.register_service('spaced_repetition', spaced_repetition)
+    
+    # Study manager
+    logger.info("Initializing study manager...")
+    print("Initializing study manager...")
+    study_manager = StudyManager(db_handler)
+    container.register_service('study_manager', study_manager)
+    
+    # Media controller with proper dependency injection
+    logger.info("Initializing media controller...")
+    print("Initializing media controller...")
+    media_controller = MediaController(config=config)  # Pass config directly in constructor
+    container.register_service('media_controller', media_controller)
+    
+    # Set media path with proper error handling
+    try:
+        logger.info("Setting media path...")
+        print("Setting media path...")
+        media_controller.set_music_path()
+    except Exception as e:
+        logger.warning(f"Media path setting failed: {str(e)}. Continuing without media path.")
+        print(f"Error setting media path: {str(e)}")
+    
+    # Email manager
+    logger.info("Initializing email manager...")
+    print("Initializing email manager...")
+    email_manager = EmailManager()
+    container.register_service('email_manager', email_manager)
+    
+    # AI service
+    logger.info("Initializing AI service...")
+    print("Initializing AI service...")
+    ai_service = AIServiceHandler(config)
+    container.register_service('ai_service', ai_service)
+    
+    # File system handler
+    logger.info("Initializing file system handler...")
+    print("Initializing file system handler...")
+    file_system = FileSystemHandler()
+    container.register_service('file_system', file_system)
+    
+    # External services
+    logger.info("Initializing external services...")
+    print("Initializing external services...")
+    external_services = ExternalServices(config)
+    container.register_service('external_services', external_services)
+    
+    # Enhanced context manager with dependency injection
+    logger.info("Initializing enhanced context manager...")
+    print("Initializing enhanced context manager...")
+    enhanced_context = EnhancedContextManager(conversation_storage)
+    container.register_service('enhanced_context', enhanced_context)
+    
+    # Dynamic response generator with dependency injection
+    logger.info("Initializing dynamic response generator...")
+    print("Initializing dynamic response generator...")
+    dynamic_response = DynamicResponseGenerator(conversation_storage, enhanced_context)
+    container.register_service('dynamic_response', dynamic_response)
+    
+    return True
+
+
 def setup_application():
+    """
+    Initialize the core application services and dependency container.
+    
+    This function sets up:
+    - Dependency container for service management
+    - Logging system
+    - Event system for application-wide events
+    - Configuration management
+    - Session management for user sessions
+    - Backup management for data protection
+    
+    Returns:
+        DependencyContainer: Initialized container with core services
+    """
     # Initialize container
     container = DependencyContainer()
     
