@@ -72,10 +72,28 @@ class VoiceEngine:
                 self.porcupine = DummyPorcupine()
                 return
                 
+            wake_word_path = self.get_wake_word_path()
+            if wake_word_path is None:
+                # Use dummy implementation if wake word file is missing
+                class DummyPorcupine:
+                    def __init__(self):
+                        self.sample_rate = 16000
+                        self.frame_length = 512
+                    
+                    def process(self, audio_frame):
+                        # Always return -1 (no wake word detected)
+                        return -1
+                    
+                    def delete(self):
+                        pass
+                
+                self.porcupine = DummyPorcupine()
+                return
+                
             self.porcupine = pvporcupine.create(
                 access_key=access_key,
                 sensitivities=[self.config.get('wake_word_sensitivity', 0.5)],
-                keyword_paths=[self.get_wake_word_path()]
+                keyword_paths=[wake_word_path]
             )
         except Exception as e:
             self.gui.show_error(f"Wake word detector initialization error: {str(e)}. Using fallback mode.")
@@ -220,7 +238,9 @@ class VoiceEngine:
     def get_wake_word_path(self):
         path = os.path.join(os.path.dirname(__file__), 'resources', 'wake_word.ppn')
         if not os.path.exists(path):
-            raise FileNotFoundError("Wake word file missing. See README for setup instructions.")
+            self.gui.show_error("Wake word file missing. Using fallback mode.")
+            # Create a dummy path that will trigger the fallback mechanism
+            return None
         return path
 
     def detect_wake_word(self):
@@ -361,10 +381,17 @@ class VoiceEngine:
             return None
 
     def cleanup(self):
-        if self.porcupine:
-            self.porcupine.delete()
-        if self.pygame_initialized:
-            pygame.mixer.quit()
-        if hasattr(self, 'llm_handler'):
-            self.llm_handler.cleanup()
-        sd.stop()
+        try:
+            if hasattr(self, 'porcupine') and self.porcupine:
+                self.porcupine.delete()
+            if hasattr(self, 'pygame_initialized') and self.pygame_initialized:
+                pygame.mixer.quit()
+            if hasattr(self, 'llm_handler'):
+                self.llm_handler.cleanup()
+            sd.stop()
+        except Exception as e:
+            print(f"Error during cleanup: {str(e)}")
+            if hasattr(self, 'gui'):
+                self.gui.show_error(f"Cleanup error: {str(e)}")
+        finally:
+            print("Voice engine resources cleaned up")

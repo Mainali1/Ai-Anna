@@ -1,3 +1,7 @@
+from .search_service import SearchService
+from .news_service import NewsService
+from .feature_toggle import FeatureToggleManager
+from .web_browser import BrowserFrame   
 from typing import Dict, Any, Optional, Type
 from functools import lru_cache
 import logging
@@ -48,3 +52,5 @@ class DependencyContainer:
         self._factories.clear()
         # Clear the LRU cache
         self.get_service.cache_clear()
+
+   

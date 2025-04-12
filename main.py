@@ -24,6 +24,20 @@ import logging
 import os
 import sys
 
+def setup_application():
+    container = DependencyContainer()
+    
+    # Initialize config manager first
+    config_manager = ConfigManager()
+    container.register_service('config_manager', config_manager)
+    container.register_service('config', config_manager)
+    
+    # Initialize logger
+    log_manager = LogManager()
+    container.register_service('logger', log_manager)
+    
+    return container
+
 def main():
     try:
         # Load environment variables first
@@ -121,13 +135,16 @@ def validate_critical_config(config, logger):
     Returns True if valid, False otherwise.
     """
     required_settings = [
-        'ai_service', 
         'voice_settings', 
         'gui_settings',
         'media_paths'
     ]
     
     missing_settings = []
+    
+    # Check for AI service configuration (could be under 'ai_service' or 'ai_services')
+    if not config.get('ai_service') and not config.get('ai_services'):
+        missing_settings.append('ai_service/ai_services')
     
     for setting in required_settings:
         if not config.get(setting):
@@ -195,7 +212,8 @@ def initialize_core_components(container, config, logger):
     # AI service
     logger.info("Initializing AI service...")
     print("Initializing AI service...")
-    ai_service = AIServiceHandler(config)
+    # Pass config.config instead of config directly to AIServiceHandler
+    ai_service = AIServiceHandler(config.config)
     container.register_service('ai_service', ai_service)
     
     # File system handler
@@ -258,6 +276,7 @@ def setup_application():
         # Print the loaded config for debugging
         print("Config loaded successfully:", config_manager.config.keys())
         container.register_service('config', config_manager)
+        container.register_service('config_manager', config_manager)  # Register with both names
     except Exception as e:
         print(f"Error loading configuration: {str(e)}")
         import traceback
@@ -265,6 +284,7 @@ def setup_application():
         # Create a minimal config to allow the application to continue
         config_manager = ConfigManager()
         container.register_service('config', config_manager)
+        container.register_service('config_manager', config_manager)  # Register with both names
     
     # Setup session manager with error handling
     try:
@@ -279,6 +299,21 @@ def setup_application():
     # Setup backup manager
     backup_manager = BackupManager()
     container.register_service('backup_manager', backup_manager)
+    
+    # Initialize feature toggle manager
+    from assistant.feature_toggle import FeatureToggleManager
+    feature_toggle = FeatureToggleManager(container)
+    container.register_service('feature_toggle', feature_toggle)
+    
+    # Initialize search service
+    from assistant.search_service import SearchService
+    search_service = SearchService(container)
+    container.register_service('search_service', search_service)
+    
+    # Initialize news service
+    from assistant.news_service import NewsService
+    news_service = NewsService(container)
+    container.register_service('news_service', news_service)
     
     return container
 

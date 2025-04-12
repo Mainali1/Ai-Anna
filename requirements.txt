@@ -62,3 +62,4 @@ cryptography==41.0.7  # For encryption and secure data handling
 pyjokes==0.6.0  # For joke generation
 beautifulsoup4==4.12.2  # For web scraping
 colorama==0.4.6  # For colored terminal output
+newsapi-python==0.2.7  # For news API integration

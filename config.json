@@ -48,7 +48,7 @@
     "color": "#FF0000",
     "speed": 5
   },
-  "ai_service": "openai",
+
   "secret_key": "your-secret-key",
   
   "voice_settings": {
@@ -66,5 +66,22 @@
     "images": "d:/Projects/Ai-Anna/assets/images",
     "sounds": "d:/Projects/Ai-Anna/assets/sounds",
     "videos": "d:/Projects/Ai-Anna/assets/videos"
-  }
+  },
+"features": {
+    "voice_control": true,
+    "sound_effects": true,
+    "ai_mode": true,
+    "web_browser": true,
+    "google_search": true,
+    "news_service": true,
+    "weather_service": true,
+    "file_system": true,
+    "email_integration": true,
+    "screen_analysis": true,
+    "flashcards": true,
+    "pomodoro_timer": true,
+    "assignments": true,
+    "schedule": true,
+    "media_controls": true
+}
 }

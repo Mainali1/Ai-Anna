@@ -3,6 +3,8 @@ from tkinter import ttk, scrolledtext
 from ttkthemes import ThemedTk
 import threading
 import math
+from .web_browser import BrowserFrame
+from .feature_toggle import FeatureToggleManager
 
 class AssistantGUI:
     def __init__(self, root, config, container=None):
@@ -201,6 +203,52 @@ class AssistantGUI:
             self.ai_mode_label.config(foreground="green")
         else:
             self.ai_mode_label.config(foreground="red")
+            
+    def refresh_news(self):
+        """Refresh news content"""
+        if not self.container:
+            self.show_error("Container not initialized")
+            return
+            
+        news_service = self.container.get_service('news_service')
+        if not news_service:
+            self.show_error("News service not available")
+            return
+            
+        country = self.news_country_var.get()
+        category = self.news_category_var.get()
+        
+        # Show loading message
+        self.news_area.config(state=tk.NORMAL)
+        self.news_area.delete(1.0, tk.END)
+        self.news_area.insert(tk.END, "Loading news...")
+        self.news_area.config(state=tk.DISABLED)
+        
+        # Fetch news in a separate thread
+        threading.Thread(
+            target=self._fetch_news_thread,
+            args=(country, category),
+            daemon=True
+        ).start()
+
+    def _fetch_news_thread(self, country, category):
+        """Fetch news in a background thread"""
+        try:
+            news_service = self.container.get_service('news_service')
+            news_summary = news_service.get_news_summary(country, category)
+            
+            # Update UI with news
+            self.root.after(0, self._update_news_area, news_summary)
+        except Exception as e:
+            error_message = f"Error fetching news: {str(e)}"
+            self.root.after(0, self.show_error, error_message)
+
+    def _update_news_area(self, content):
+        """Update news area with content"""
+        self.news_area.config(state=tk.NORMAL)
+        self.news_area.delete(1.0, tk.END)
+        self.news_area.insert(tk.END, content)
+        self.news_area.config(state=tk.DISABLED)
     
     def start_processing_animation(self, prefix="Processing"):
         self.dots_count = (self.dots_count + 1) % 4
@@ -370,6 +418,10 @@ class AssistantGUI:
         help_button = ttk.Button(self.sidebar, text="Help", command=self.show_help)
         help_button.pack(fill=tk.X, padx=5, pady=5)
 
+        # Settings button
+        settings_button = ttk.Button(self.sidebar, text="Settings", command=self.show_feature_toggle_dialog)
+        settings_button.pack(fill=tk.X, padx=5, pady=5)
+
         # Status section
         status_frame = ttk.LabelFrame(self.sidebar, text='Assistant Status', style='Custom.TLabelframe')
         status_frame.pack(fill=tk.X, padx=5, pady=5)
@@ -534,6 +586,44 @@ class AssistantGUI:
                                                      bg='#2d2d2d',
                                                      fg='#ffffff')
         self.schedule_area.pack(fill=tk.BOTH, expand=True)
+
+        # Web Browser tab
+        browser_frame = ttk.Frame(self.notebook, style='Content.TFrame')
+        self.notebook.add(browser_frame, text='Web')
+        self.browser = BrowserFrame(browser_frame, self.container)
+        self.browser.pack(fill=tk.BOTH, expand=True)
+
+        # News tab
+        news_frame = ttk.Frame(self.notebook, style='Content.TFrame')
+        self.notebook.add(news_frame, text='News')
+        self.news_area = scrolledtext.ScrolledText(news_frame,
+                                                 wrap=tk.WORD,
+                                                 font=('Segoe UI', 11),
+                                                 bg='#2d2d2d',
+                                                 fg='#ffffff')
+        self.news_area.pack(fill=tk.BOTH, expand=True)
+
+        # Add news controls
+        news_controls = ttk.Frame(news_frame)
+        news_controls.pack(fill=tk.X, padx=5, pady=5)
+
+        # Country selection
+        ttk.Label(news_controls, text="Country:").pack(side=tk.LEFT, padx=5)
+        self.news_country_var = tk.StringVar(value="us")
+        news_country = ttk.Combobox(news_controls, textvariable=self.news_country_var, width=5)
+        news_country['values'] = ('us', 'gb', 'ca', 'au', 'in', 'de', 'fr')
+        news_country.pack(side=tk.LEFT, padx=5)
+
+        # Category selection
+        ttk.Label(news_controls, text="Category:").pack(side=tk.LEFT, padx=5)
+        self.news_category_var = tk.StringVar(value="general")
+        news_category = ttk.Combobox(news_controls, textvariable=self.news_category_var, width=10)
+        news_category['values'] = ('general', 'business', 'entertainment', 'health', 'science', 'sports', 'technology')
+        news_category.pack(side=tk.LEFT, padx=5)
+
+        # Refresh button
+        ttk.Button(news_controls, text="Refresh", 
+                  command=self.refresh_news).pack(side=tk.RIGHT, padx=5)
         
         # Input area
         input_frame = ttk.Frame(self.content, style='Content.TFrame')
@@ -878,12 +968,155 @@ class AssistantGUI:
         
         ttk.Button(dialog, text="Search", command=search_youtube).pack(pady=10)
 
+    def show_feature_toggle_dialog(self):
+        """Show dialog to toggle features"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Feature Settings")
+        dialog.geometry("400x500")
+        
+        # Get feature toggle manager
+        feature_manager = self.container.get_service('feature_toggle')
+        if not feature_manager:
+            self.show_error("Feature toggle manager not available")
+            dialog.destroy()
+            return
+        
+        # Get all features
+        features = feature_manager.get_all_features()
+        
+        # Create scrollable frame
+        main_frame = ttk.Frame(dialog)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        canvas = tk.Canvas(main_frame)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Create feature toggle checkboxes
+        feature_vars = {}
+        for feature, enabled in sorted(features.items()):
+            var = tk.BooleanVar(value=enabled)
+            feature_vars[feature] = var
+            
+            # Format feature name for display
+            display_name = feature.replace('_', ' ').title()
+            
+            # Create checkbox
+            checkbox = ttk.Checkbutton(
+                scrollable_frame, 
+                text=display_name,
+                variable=var,
+                command=lambda f=feature, v=var: self._toggle_feature(f, v.get())
+            )
+            checkbox.pack(anchor="w", padx=10, pady=5, fill="x")
+        
+        # Add buttons at the bottom
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Button(
+            button_frame, 
+            text="Enable All",
+            command=lambda: self._set_all_features(feature_vars, True)
+        ).pack(side="left", padx=5)
+        
+        ttk.Button(
+            button_frame, 
+            text="Disable All",
+            command=lambda: self._set_all_features(feature_vars, False)
+        ).pack(side="left", padx=5)
+        
+        ttk.Button(
+            button_frame, 
+            text="Reset to Defaults",
+            command=lambda: self._reset_features_to_default(feature_vars)
+        ).pack(side="left", padx=5)
+        
+        ttk.Button(
+            button_frame, 
+            text="Close",
+            command=dialog.destroy
+        ).pack(side="right", padx=5)
+
+    def _toggle_feature(self, feature, enabled):
+        """Toggle a feature on or off"""
+        feature_manager = self.container.get_service('feature_toggle')
+        if feature_manager:
+            if enabled:
+                feature_manager.enable_feature(feature)
+            else:
+                feature_manager.disable_feature(feature)
+            
+            # Emit event for feature change
+            if self.event_system:
+                self.event_system.emit('feature_change', {
+                    'feature': feature,
+                    'enabled': enabled
+                })
+
+    def _set_all_features(self, feature_vars, enabled):
+        """Enable or disable all features"""
+        feature_manager = self.container.get_service('feature_toggle')
+        if feature_manager:
+            for feature, var in feature_vars.items():
+                var.set(enabled)
+                if enabled:
+                    feature_manager.enable_feature(feature)
+                else:
+                    feature_manager.disable_feature(feature)
+            
+            # Emit event for feature change
+            if self.event_system:
+                self.event_system.emit('features_change', {
+                    'all_enabled': enabled
+                })
+
+    def _reset_features_to_default(self, feature_vars):
+        """Reset all features to their default values"""
+        feature_manager = self.container.get_service('feature_toggle')
+        if feature_manager:
+            feature_manager.reset_to_defaults()
+            
+            # Update checkboxes
+            features = feature_manager.get_all_features()
+            for feature, var in feature_vars.items():
+                var.set(features.get(feature, False))
+            
+            # Emit event for feature change
+            if self.event_system:
+                self.event_system.emit('features_reset', {})
+
+
+    def toggle_feature(self, feature, state):
+        """Toggle a feature state"""
+        feature_manager = self.container.get_service('feature_toggle')
+        if feature_manager:
+            if state:
+                feature_manager.enable_feature(feature)
+            else:
+                feature_manager.disable_feature(feature)
+
 
 
     def create_sidebar_content(self):
         # Help button at the top
         help_button = ttk.Button(self.sidebar, text="Help", command=self.show_help)
         help_button.pack(fill=tk.X, padx=5, pady=5)
+
+        # Settings button
+        settings_button = ttk.Button(self.sidebar, text="Settings", command=self.show_feature_toggle_dialog)
+        settings_button.pack(fill=tk.X, padx=5, pady=5)
 
         # Status section
         status_frame = ttk.LabelFrame(self.sidebar, text='Assistant Status', style='Custom.TLabelframe')
@@ -1049,6 +1282,44 @@ class AssistantGUI:
                                                      bg='#2d2d2d',
                                                      fg='#ffffff')
         self.schedule_area.pack(fill=tk.BOTH, expand=True)
+
+        # Web Browser tab
+        browser_frame = ttk.Frame(self.notebook, style='Content.TFrame')
+        self.notebook.add(browser_frame, text='Web')
+        self.browser = BrowserFrame(browser_frame, self.container)
+        self.browser.pack(fill=tk.BOTH, expand=True)
+
+        # News tab
+        news_frame = ttk.Frame(self.notebook, style='Content.TFrame')
+        self.notebook.add(news_frame, text='News')
+        self.news_area = scrolledtext.ScrolledText(news_frame,
+                                                 wrap=tk.WORD,
+                                                 font=('Segoe UI', 11),
+                                                 bg='#2d2d2d',
+                                                 fg='#ffffff')
+        self.news_area.pack(fill=tk.BOTH, expand=True)
+
+        # Add news controls
+        news_controls = ttk.Frame(news_frame)
+        news_controls.pack(fill=tk.X, padx=5, pady=5)
+
+        # Country selection
+        ttk.Label(news_controls, text="Country:").pack(side=tk.LEFT, padx=5)
+        self.news_country_var = tk.StringVar(value="us")
+        news_country = ttk.Combobox(news_controls, textvariable=self.news_country_var, width=5)
+        news_country['values'] = ('us', 'gb', 'ca', 'au', 'in', 'de', 'fr')
+        news_country.pack(side=tk.LEFT, padx=5)
+
+        # Category selection
+        ttk.Label(news_controls, text="Category:").pack(side=tk.LEFT, padx=5)
+        self.news_category_var = tk.StringVar(value="general")
+        news_category = ttk.Combobox(news_controls, textvariable=self.news_category_var, width=10)
+        news_category['values'] = ('general', 'business', 'entertainment', 'health', 'science', 'sports', 'technology')
+        news_category.pack(side=tk.LEFT, padx=5)
+
+        # Refresh button
+        ttk.Button(news_controls, text="Refresh", 
+                  command=self.refresh_news).pack(side=tk.RIGHT, padx=5)
         
         # Input area
         input_frame = ttk.Frame(self.content, style='Content.TFrame')
@@ -1393,12 +1664,155 @@ class AssistantGUI:
         
         ttk.Button(dialog, text="Search", command=search_youtube).pack(pady=10)
 
+    def show_feature_toggle_dialog(self):
+        """Show dialog to toggle features"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Feature Settings")
+        dialog.geometry("400x500")
+        
+        # Get feature toggle manager
+        feature_manager = self.container.get_service('feature_toggle')
+        if not feature_manager:
+            self.show_error("Feature toggle manager not available")
+            dialog.destroy()
+            return
+        
+        # Get all features
+        features = feature_manager.get_all_features()
+        
+        # Create scrollable frame
+        main_frame = ttk.Frame(dialog)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        canvas = tk.Canvas(main_frame)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Create feature toggle checkboxes
+        feature_vars = {}
+        for feature, enabled in sorted(features.items()):
+            var = tk.BooleanVar(value=enabled)
+            feature_vars[feature] = var
+            
+            # Format feature name for display
+            display_name = feature.replace('_', ' ').title()
+            
+            # Create checkbox
+            checkbox = ttk.Checkbutton(
+                scrollable_frame, 
+                text=display_name,
+                variable=var,
+                command=lambda f=feature, v=var: self._toggle_feature(f, v.get())
+            )
+            checkbox.pack(anchor="w", padx=10, pady=5, fill="x")
+        
+        # Add buttons at the bottom
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Button(
+            button_frame, 
+            text="Enable All",
+            command=lambda: self._set_all_features(feature_vars, True)
+        ).pack(side="left", padx=5)
+        
+        ttk.Button(
+            button_frame, 
+            text="Disable All",
+            command=lambda: self._set_all_features(feature_vars, False)
+        ).pack(side="left", padx=5)
+        
+        ttk.Button(
+            button_frame, 
+            text="Reset to Defaults",
+            command=lambda: self._reset_features_to_default(feature_vars)
+        ).pack(side="left", padx=5)
+        
+        ttk.Button(
+            button_frame, 
+            text="Close",
+            command=dialog.destroy
+        ).pack(side="right", padx=5)
+
+    def _toggle_feature(self, feature, enabled):
+        """Toggle a feature on or off"""
+        feature_manager = self.container.get_service('feature_toggle')
+        if feature_manager:
+            if enabled:
+                feature_manager.enable_feature(feature)
+            else:
+                feature_manager.disable_feature(feature)
+            
+            # Emit event for feature change
+            if self.event_system:
+                self.event_system.emit('feature_change', {
+                    'feature': feature,
+                    'enabled': enabled
+                })
+
+    def _set_all_features(self, feature_vars, enabled):
+        """Enable or disable all features"""
+        feature_manager = self.container.get_service('feature_toggle')
+        if feature_manager:
+            for feature, var in feature_vars.items():
+                var.set(enabled)
+                if enabled:
+                    feature_manager.enable_feature(feature)
+                else:
+                    feature_manager.disable_feature(feature)
+            
+            # Emit event for feature change
+            if self.event_system:
+                self.event_system.emit('features_change', {
+                    'all_enabled': enabled
+                })
+
+    def _reset_features_to_default(self, feature_vars):
+        """Reset all features to their default values"""
+        feature_manager = self.container.get_service('feature_toggle')
+        if feature_manager:
+            feature_manager.reset_to_defaults()
+            
+            # Update checkboxes
+            features = feature_manager.get_all_features()
+            for feature, var in feature_vars.items():
+                var.set(features.get(feature, False))
+            
+            # Emit event for feature change
+            if self.event_system:
+                self.event_system.emit('features_reset', {})
+
+
+    def toggle_feature(self, feature, state):
+        """Toggle a feature state"""
+        feature_manager = self.container.get_service('feature_toggle')
+        if feature_manager:
+            if state:
+                feature_manager.enable_feature(feature)
+            else:
+                feature_manager.disable_feature(feature)
+
 
 
     def create_sidebar_content(self):
         # Help button at the top
         help_button = ttk.Button(self.sidebar, text="Help", command=self.show_help)
         help_button.pack(fill=tk.X, padx=5, pady=5)
+
+        # Settings button
+        settings_button = ttk.Button(self.sidebar, text="Settings", command=self.show_feature_toggle_dialog)
+        settings_button.pack(fill=tk.X, padx=5, pady=5)
 
         # Status section
         status_frame = ttk.LabelFrame(self.sidebar, text='Assistant Status', style='Custom.TLabelframe')

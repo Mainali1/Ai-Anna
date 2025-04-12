@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from typing import Optional, Dict, List, Any
 from pathlib import Path
 import requests
@@ -142,10 +143,15 @@ class AIServiceHandler:
 
     def _process_cloud(self, text: str, task_type: str, service_config: Dict) -> Dict[str, Any]:
         """Process text using a cloud AI service"""
-        if not self.config.get('ai_service'):
+        # Check for AI configuration under either 'ai_service' or 'ai_services' key
+        ai_config = None
+        if self.config.get('ai_service'):
+            ai_config = self.config['ai_service']
+        elif self.config.get('ai_services'):
+            ai_config = self.config['ai_services']
+        
+        if not ai_config:
             return {'error': 'AI service configuration missing'}
-
-        ai_config = self.config['ai_service']
         provider = service_config.get('name', ai_config.get('preferred_provider'))
 
         if provider == 'openai':

@@ -12,6 +12,7 @@ from .weather_service import WeatherService
 from .system_controller import SystemController
 from .conversation_storage import ConversationStorage
 from .screen_analyzer import ScreenAnalyzer
+from .commands.search_commands import GoogleSearchCommand, NewsCommand
 
 class CommandHandler:
     def __init__(self, gui, voice_engine, study_manager, music_controller, email_manager, config, spaced_repetition, ai_service, file_system, external_services):
@@ -23,6 +24,10 @@ class CommandHandler:
         self.logger = logging.getLogger(__name__)
 
         # Initialize core services
+        self.news_service = None
+        self.feature_toggle = None
+        self.search_service = None
+        # Initialize other services
         self.external_services = external_services
         self.ai_service = ai_service
         self.file_system = file_system
@@ -33,6 +38,15 @@ class CommandHandler:
         self.email_manager = email_manager
         self.config = config
         self.spaced_repetition = spaced_repetition
+        
+        # Try to get additional services from container if available
+        if hasattr(gui, 'container') and gui.container:
+            try:
+                self.news_service = gui.container.get_service('news_service')
+                self.feature_toggle = gui.container.get_service('feature_toggle')
+                self.search_service = gui.container.get_service('search_service')
+            except KeyError:
+                pass
         self.weather_service = WeatherService()
         self.system_controller = SystemController()
         self.screen_analyzer = ScreenAnalyzer(config)
@@ -686,3 +700,40 @@ class CommandHandler:
         except Exception as e:
             self.logger.error(f"Error in open_application: {str(e)}")
             return f"Sorry, I couldn't process that command: {str(e)}"
+
+    def _register_commands(self):
+        """Register all available commands"""
+        try:
+            # Import all command classes
+            from .commands.music_command import MediaCommand
+            from .commands.weather_command import WeatherCommand
+            from .commands.web_search_command import WebSearchCommand
+            from .commands.wikipedia_command import WikipediaCommand
+            from .commands.time_command import TimeCommand
+            from .commands.system_command import SystemCommand
+            from .commands.help_command import HelpCommand
+            from .commands.youtube_command import YouTubeCommand
+            from .commands.search_commands import GoogleSearchCommand, NewsCommand
+            
+            # Register core commands with proper error handling
+            commands_to_register = [
+                ('media', MediaCommand),
+                ('weather', WeatherCommand),
+                ('time', TimeCommand),
+                ('web_search', WebSearchCommand),
+                ('wikipedia', WikipediaCommand),
+                ('system', SystemCommand),
+                ('help', HelpCommand),
+                ('youtube', YouTubeCommand),
+                ('google_search', GoogleSearchCommand),
+                ('news', NewsCommand)
+            ]
+            
+            for intent, command_class in commands_to_register:
+                try:
+                    self.command_registry.register(intent, command_class)
+                    self.logger.info(f"Successfully registered {intent} command")
+                except Exception as e:
+                    self.logger.error(f"Failed to register {intent} command: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Error in _register_commands: {str(e)}")

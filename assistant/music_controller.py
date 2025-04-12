@@ -30,12 +30,20 @@ class MediaController:
         """Set the music path from config or use default"""
         try:
             # Handle different ways the config might be structured
-            if hasattr(self.config, 'get'):
+            if self.config is None:
+                # If config is None, use default path
+                self.music_path = os.path.join(os.path.expanduser('~'), 'Music')
+                print(f"No config provided. Using default music path: {self.music_path}")
+            elif hasattr(self.config, 'get'):
                 # If config is a ConfigManager object with get method
                 self.music_path = self.config.get('music_path', None)
             elif isinstance(self.config, dict):
                 # If config is a dictionary
                 self.music_path = self.config.get('music_path', None)
+            else:
+                # If config is of an unexpected type
+                self.music_path = None
+                print("Config is of unexpected type. Using default path.")
             
             # If no music path is set, use default
             if not self.music_path:
@@ -56,7 +64,7 @@ class MediaController:
         
         # Create directory if it doesn't exist
         if not os.path.exists(self.music_path):
-            os.makedirs(self.music_path)
+            os.makedirs(self.music_path, exist_ok=True)
             
         print(f"Media path set to: {self.music_path}")
     
